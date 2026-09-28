@@ -74,6 +74,8 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert page.resp_body =~ "Edition identity is disputed"
     assert page.resp_body =~ "pramana:cbeta.T:T1800_001@p0001a01"
     assert page.resp_body =~ "Shared text alone does not prove direction"
+    assert page.resp_body =~ "T1800_001@p0001a01</code>\n(text characters [2, 23))"
+    assert page.resp_body =~ "T0400_001@p0002a01</code>\n(text characters [7, 28))"
 
     posted = post(relation.id, login, page, submission(page))
     assert posted.status == 302
@@ -94,6 +96,31 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert after_submit.status == 200
     assert after_submit.resp_body =~ "Your previous judgments"
     assert after_submit.resp_body =~ judgment.rationale
+  end
+
+  test "the restricted reviewer database role can submit without corpus write grants", context do
+    login = login("reviewer.case", context.credential)
+    page = get("/reviews/#{context.relation.id}", login)
+    role = "pramana_review_test_#{System.unique_integer([:positive])}"
+
+    Repo.query!("CREATE ROLE #{role} NOLOGIN")
+    Repo.query!("GRANT USAGE ON SCHEMA public TO #{role}")
+
+    Repo.query!("""
+    GRANT SELECT ON reviewer_accounts, reviewer_grants, reviewer_judgments,
+      work_relations, release_selection, releases TO #{role}
+    """)
+
+    Repo.query!("GRANT INSERT ON reviewer_judgments TO #{role}")
+
+    try do
+      Repo.query!("SET LOCAL ROLE #{role}")
+      assert post(context.relation.id, login, page, submission(page)).status == 302
+    after
+      Repo.query!("RESET ROLE")
+    end
+
+    assert Repo.get_by!(Judgment, account_id: context.account.id).judgment == "disputed"
   end
 
   test "an old form refuses changed assertion evidence or release", context do
@@ -165,6 +192,21 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert first_history =~ "The quoted passage does not establish this edition."
     refute first_history =~ "The cited colophon names this exact witness."
     assert Repo.get!(WorkRelation, context.relation.id).review_status == "needs_review"
+  end
+
+  test "full-length Chinese fields reach the form", context do
+    login = login("reviewer.case", context.credential)
+    page = get("/reviews/#{context.relation.id}", login)
+
+    attrs =
+      submission(page)
+      |> Map.put("rationale", String.duplicate("漢", 2_000))
+      |> Map.put("source_references", String.duplicate("藏", 2_000))
+
+    assert post(context.relation.id, login, page, attrs).status == 302
+    judgment = Repo.get_by!(Judgment, account_id: context.account.id)
+    assert judgment.rationale == attrs["rationale"]
+    assert judgment.source_references == attrs["source_references"]
   end
 
   test "an invalid configured artifact exposes no cases or submission path", context do
@@ -275,6 +317,8 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
 
     quote_text = "如是我聞此處只是相同的文字不能證明版本關係"
     quote_sha256 = hash(quote_text)
+    source_body = "甲乙" <> quote_text
+    target_body = String.duplicate("乙", 7) <> quote_text
 
     source_text =
       Repo.insert!(%Text{
@@ -282,8 +326,8 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
         witness_id: "T",
         work_id: "T1800",
         urn_prefix: "pramana:cbeta.T:T1800",
-        body: quote_text,
-        body_sha256: quote_sha256
+        body: source_body,
+        body_sha256: hash(source_body)
       })
 
     target_text =
@@ -292,24 +336,24 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
         witness_id: "T",
         work_id: "T0400",
         urn_prefix: "pramana:cbeta.T:T0400",
-        body: quote_text,
-        body_sha256: quote_sha256
+        body: target_body,
+        body_sha256: hash(target_body)
       })
 
     Repo.insert!(%Quotation{
       text: quote_text,
       text_sha256: quote_sha256,
       length: String.length(quote_text),
-      a_text_id: source_text.id,
-      a_work_id: "T1800",
-      a_urn: "pramana:cbeta.T:T1800_001@p0001a01",
-      a_char_start: 0,
-      a_char_end: String.length(quote_text),
-      b_text_id: target_text.id,
-      b_work_id: "T0400",
-      b_urn: "pramana:cbeta.T:T0400_001@p0002a01",
-      b_char_start: 0,
-      b_char_end: String.length(quote_text),
+      a_text_id: target_text.id,
+      a_work_id: "T0400",
+      a_urn: "pramana:cbeta.T:T0400_001@p0002a01",
+      a_char_start: 7,
+      a_char_end: 7 + String.length(quote_text),
+      b_text_id: source_text.id,
+      b_work_id: "T1800",
+      b_urn: "pramana:cbeta.T:T1800_001@p0001a01",
+      b_char_start: 2,
+      b_char_end: 2 + String.length(quote_text),
       bake_id: "review-bake"
     })
 

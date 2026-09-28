@@ -126,6 +126,15 @@ defmodule Pramana.CI.ServingPrivileges do
         "private reviewer can alter existing judgments"
       )
 
+      expect!(
+        query!("""
+        SELECT relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+          OR has_any_column_privilege(oid, 'UPDATE,REFERENCES')
+        FROM pg_class WHERE oid = 'reviewer_judgments'::regclass
+        """) == [[false]],
+        "private reviewer owns or can alter a judgment column"
+      )
+
       query!("INSERT INTO reviewer_judgments (id) SELECT NULL::uuid WHERE false")
     end
 

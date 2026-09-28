@@ -209,8 +209,9 @@ Mount the exact reviewed `mix pramana.pilot.scope` JSON artifact read-only in th
 runtime and set `PRAMANA_REVIEW_SCOPE_PATH` to that file. The private page validates its
 schema and content hash before listing cases. A submission rechecks the individual
 account, live grant, selected release and current relation evidence. Where available,
-the source context shows current-bake shared passages with their CBETA Taishō addresses
-and text hashes. Shared text alone does not prove which edition a commentary explains.
+the source context shows current-bake shared passages with their CBETA Taishō addresses,
+exact character offsets and text hashes. Shared text alone does not prove which edition
+a commentary explains.
 A reviewer judgment remains separate from the relation and does not clear
 `needs_review`. The saved artifact's validation does not establish live scope
 currentness or rights acceptance;

@@ -53,8 +53,10 @@ defmodule PramanaWeb.ReviewerJudgmentController do
           Enum.map_join(examples, "", fn quote ->
             """
             <li><blockquote lang="zh-Hant">#{escape(quote.text)}</blockquote>
-            <p>Commentary address: <code>#{escape(quote.source_urn)}</code><br>
-            Target address: <code>#{escape(quote.target_urn)}</code><br>
+            <p>Commentary address: <code>#{escape(quote.source_urn)}</code>
+            (text characters [#{quote.source_start}, #{quote.source_end}))<br>
+            Target address: <code>#{escape(quote.target_urn)}</code>
+            (text characters [#{quote.target_start}, #{quote.target_end}))<br>
             Shared-text SHA-256: <code>#{escape(quote.text_sha256)}</code></p></li>
             """
           end)

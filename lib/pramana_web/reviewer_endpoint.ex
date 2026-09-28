@@ -18,7 +18,7 @@ defmodule PramanaWeb.ReviewerEndpoint do
   plug Plug.Parsers,
     parsers: [:urlencoded],
     pass: ["text/*"],
-    length: 8_192
+    length: 65_536
 
   plug Plug.MethodOverride
   plug Plug.Head

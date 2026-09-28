@@ -93,9 +93,7 @@ defmodule Pramana.Reviewer.Reviews do
          true <- params["release_id"] == release_id,
          changeset <- judgment_changeset(params),
          true <- changeset.valid? do
-      Repo.transaction(fn ->
-        append_checked(account, artifact, parsed_id, params["assertion_fingerprint"], changeset)
-      end)
+      append_checked(account, artifact, parsed_id, params["assertion_fingerprint"], changeset)
     else
       false -> {:error, :invalid_submission}
       {:error, reason} -> {:error, reason}
@@ -105,69 +103,86 @@ defmodule Pramana.Reviewer.Reviews do
   def submit(_, _, _, _), do: {:error, :invalid_submission}
 
   defp append_checked(account, artifact, assertion_id, submitted_fingerprint, changeset) do
-    scope_sha256 = artifact["scope_content_sha256"]
-    release_id = artifact["release"]["release_id"]
-
-    case checked_context(account, artifact, assertion_id, submitted_fingerprint) do
-      {:ok, live_account, grant, row} ->
-        changeset
-        |> Ecto.Changeset.change(%{
-          account_id: live_account.id,
-          grant_id: grant.id,
-          assertion_id: row.id,
-          scope_sha256: scope_sha256,
-          release_id: release_id,
-          assertion_fingerprint: submitted_fingerprint,
-          inserted_at: DateTime.utc_now()
-        })
-        |> Repo.insert()
-        |> case do
-          {:ok, judgment} -> judgment
-          {:error, reason} -> Repo.rollback(reason)
-        end
-
-      _ ->
-        Repo.rollback(:stale_or_unauthorized)
-    end
-  end
-
-  defp checked_context(account, artifact, assertion_id, submitted_fingerprint) do
-    scope_sha256 = artifact["scope_content_sha256"]
-    release_id = artifact["release"]["release_id"]
-
-    with %Account{} = live_account <- active_account_locked(account),
-         %Grant{} = grant <- active_grant_locked(account.id, scope_sha256),
-         ^release_id <- selected_release_id_locked(),
-         %WorkRelation{} = row <- relation_locked(assertion_id),
+    with %WorkRelation{} = row <- Repo.get(WorkRelation, assertion_id),
          %{} = candidate <- Enum.find(candidates(artifact), &matches?(&1, row)),
          true <- fingerprint(candidate) == submitted_fingerprint do
-      {:ok, live_account, grant, row}
+      attrs = Ecto.Changeset.apply_changes(changeset)
+
+      case Repo.insert_all(
+             Judgment,
+             authorized_insert(account, artifact, row.id, candidate, attrs),
+             returning: true
+           ) do
+        {1, [judgment]} -> {:ok, judgment}
+        {0, []} -> {:error, :stale_or_unauthorized}
+      end
     else
       _ -> {:error, :stale_or_unauthorized}
     end
   end
 
-  defp active_account_locked(account) do
-    from(a in Account,
-      where: a.id == ^account.id and a.active and a.session_epoch == ^account.session_epoch,
-      lock: "FOR SHARE"
-    )
-    |> Repo.one()
+  defp authorized_insert(account, artifact, assertion_id, candidate, attrs) do
+    scope_sha256 = artifact["scope_content_sha256"]
+    release_id = artifact["release"]["release_id"]
+
+    query =
+      account
+      |> authorized_rows(scope_sha256, release_id)
+      |> matching_relation(assertion_id, candidate)
+      |> matching_assertion(candidate.assertion)
+
+    from [r, a, g, _s, release] in query,
+      select: %{
+        id: type(^Ecto.UUID.generate(), Ecto.UUID),
+        account_id: a.id,
+        grant_id: g.id,
+        assertion_id: r.id,
+        scope_sha256: ^scope_sha256,
+        release_id: release.release_id,
+        assertion_fingerprint: ^fingerprint(candidate),
+        judgment: ^attrs.judgment,
+        rationale: ^attrs.rationale,
+        source_references: ^attrs.source_references,
+        inserted_at: ^DateTime.utc_now()
+      }
   end
 
-  defp active_grant_locked(account_id, scope_sha256) do
-    from(g in Grant,
-      where:
-        g.account_id == ^account_id and g.scope_sha256 == ^scope_sha256 and
+  defp authorized_rows(account, scope_sha256, release_id) do
+    from r in WorkRelation,
+      join: a in Account,
+      on: a.id == ^account.id and a.active and a.session_epoch == ^account.session_epoch,
+      join: g in Grant,
+      on:
+        g.account_id == a.id and g.scope_sha256 == ^scope_sha256 and
           g.capability == "relation_review" and is_nil(g.revoked_at),
-      lock: "FOR SHARE"
-    )
-    |> Repo.one()
+      join: s in Selection,
+      on: s.id == 1,
+      join: release in ReleaseSchema,
+      on: release.id == s.release_id and release.release_id == ^release_id
   end
 
-  defp relation_locked(assertion_id) do
-    from(r in WorkRelation, where: r.id == ^assertion_id, lock: "FOR SHARE")
-    |> Repo.one()
+  defp matching_relation(query, assertion_id, candidate) do
+    from [r] in query,
+      where:
+        r.id == ^assertion_id and r.source_work_id == ^candidate.source_work_id and
+          r.target_work_id == ^candidate.target_work_id and
+          r.relation == ^candidate.relation and r.review_status == "needs_review"
+  end
+
+  defp matching_assertion(query, assertion) do
+    target_urn = assertion["target_urn"]
+
+    target_filter =
+      if is_nil(target_urn),
+        do: dynamic([r], is_nil(r.target_urn)),
+        else: dynamic([r], r.target_urn == ^target_urn)
+
+    from [r] in query,
+      where:
+        r.method == ^assertion["method"] and r.confidence == ^assertion["confidence"] and
+          r.scope == ^assertion["scope"] and r.review_reason == ^assertion["review_reason"] and
+          fragment("COALESCE(?, '{}'::jsonb) = ?", r.evidence, ^assertion["evidence"]),
+      where: ^target_filter
   end
 
   defp matching_cases(rows, candidates) do
@@ -255,17 +270,6 @@ defmodule Pramana.Reviewer.Reviews do
       else: {:error, :stale_release}
   end
 
-  defp selected_release_id_locked do
-    from(selection in Selection,
-      join: release in ReleaseSchema,
-      on: release.id == selection.release_id,
-      where: selection.id == 1,
-      select: release.release_id,
-      lock: "FOR SHARE"
-    )
-    |> Repo.one()
-  end
-
   defp own_judgments(account_id, assertion_id, scope_sha256, release_id, fingerprint) do
     from(j in Judgment,
       where:
@@ -296,7 +300,11 @@ defmodule Pramana.Reviewer.Reviews do
         text_sha256: q.text_sha256,
         a_work_id: q.a_work_id,
         a_urn: q.a_urn,
-        b_urn: q.b_urn
+        a_char_start: q.a_char_start,
+        a_char_end: q.a_char_end,
+        b_urn: q.b_urn,
+        b_char_start: q.b_char_start,
+        b_char_end: q.b_char_end
       }
     )
     |> Repo.all()
@@ -312,16 +320,24 @@ defmodule Pramana.Reviewer.Reviews do
   end
 
   defp present_quote(quote, source_work_id) do
-    {source_urn, target_urn} =
+    {source_urn, source_start, source_end, target_urn, target_start, target_end} =
       if quote.a_work_id == source_work_id,
-        do: {quote.a_urn, quote.b_urn},
-        else: {quote.b_urn, quote.a_urn}
+        do:
+          {quote.a_urn, quote.a_char_start, quote.a_char_end, quote.b_urn, quote.b_char_start,
+           quote.b_char_end},
+        else:
+          {quote.b_urn, quote.b_char_start, quote.b_char_end, quote.a_urn, quote.a_char_start,
+           quote.a_char_end}
 
     %{
       text: quote.text,
       text_sha256: quote.text_sha256,
       source_urn: source_urn,
-      target_urn: target_urn
+      source_start: source_start,
+      source_end: source_end,
+      target_urn: target_urn,
+      target_start: target_start,
+      target_end: target_end
     }
   end
 
