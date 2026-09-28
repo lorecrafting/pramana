@@ -512,7 +512,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp check_review_cases(errors, cases, works, relations)
        when is_list(cases) and is_list(works) and is_list(relations) do
     if Enum.all?(cases, &is_map/1) do
-      work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
+      works_by_id = Map.new(works, &{&1["work_id"], &1})
       admitted_pairs = MapSet.new(Enum.map(relations, &relation_identity/1))
       keys = Enum.map(cases, &review_case_key/1)
 
@@ -521,7 +521,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
         |> add_if(keys != Enum.sort(keys), "review_cases must use canonical sort order")
         |> add_if(length(keys) != length(Enum.uniq(keys)), "review_cases must be unique")
 
-      Enum.reduce(cases, errors, &check_review_case(&1, &2, work_ids, admitted_pairs))
+      Enum.reduce(cases, errors, &check_review_case(&1, &2, works_by_id, admitted_pairs))
     else
       ["review_cases must contain objects" | errors]
     end
@@ -530,11 +530,15 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp check_review_cases(errors, _cases, _works, _relations),
     do: ["review_cases must be an array" | errors]
 
-  defp check_review_case(row, errors, work_ids, admitted_pairs) do
+  defp check_review_case(row, errors, works_by_id, admitted_pairs) do
     errors
     |> add_if(
-      not MapSet.member?(work_ids, row["source_work_id"]),
+      not Map.has_key?(works_by_id, row["source_work_id"]),
       "review case source must be an in-scope work"
+    )
+    |> add_if(
+      not valid_review_roles?(row, works_by_id),
+      "review case roles are incompatible with relation"
     )
     |> add_if(not valid_review_target?(row), "review case target work is invalid")
     |> add_if(
@@ -563,12 +567,36 @@ defmodule Pramana.Pilot.ScopeArtifact do
   defp valid_review_target?(row),
     do: nonempty?(row["target_work_id"]) and row["target_work_id"] != row["source_work_id"]
 
+  defp valid_review_roles?(row, works_by_id) do
+    source_role = get_in(works_by_id, [row["source_work_id"], "text_role"])
+
+    case {row["relation"], source_role, row["target_text_role"]} do
+      {"comments_on", role, "root"} when role in ~w(commentary treatise) ->
+        true
+
+      {"subcommentary_of", "subcommentary", role} when role in ~w(treatise commentary root) ->
+        true
+
+      _ ->
+        false
+    end
+  end
+
   defp valid_review_assertion?(assertion) when is_map(assertion),
     do:
       assertion["method"] in @relation_methods and
+        assertion["confidence"] in ~w(certain probable asserted uncertain) and
+        assertion["scope"] in ~w(whole_work juan passage) and
+        valid_review_target_urn?(assertion) and
         assertion["review_status"] == "needs_review" and valid_review_state?(assertion)
 
   defp valid_review_assertion?(_), do: false
+
+  defp valid_review_target_urn?(assertion) do
+    Map.has_key?(assertion, "target_urn") and
+      (is_nil(assertion["target_urn"]) or nonempty?(assertion["target_urn"])) and
+      (assertion["scope"] != "passage" or nonempty?(assertion["target_urn"]))
+  end
 
   defp valid_review_evidence?(assertion) when is_map(assertion) do
     is_map(assertion["evidence"]) and

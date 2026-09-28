@@ -16,7 +16,7 @@ defmodule Strategy.PilotScopeArtifactTest do
   test "older artifacts are not silently reinterpreted as the v4 contract" do
     artifact =
       valid_artifact()
-      |> Map.put("schema", "pramana-pilot-scope/v1")
+      |> Map.put("schema", "pramana-pilot-scope/v3")
       |> Map.delete("scope_content_sha256")
 
     artifact =
@@ -110,6 +110,28 @@ defmodule Strategy.PilotScopeArtifactTest do
       |> refinalize()
 
     assert {:error, errors} = ScopeArtifact.validate(malformed)
+    assert "review case must carry an allowed needs-review assertion" in errors
+  end
+
+  test "a rehashed review case must retain a coherent source role and assertion shape" do
+    artifact = valid_artifact()
+
+    root_source =
+      artifact
+      |> put_in(["review_cases", Access.at(0), "source_work_id"], "T0001")
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(root_source)
+    assert "review case roles are incompatible with relation" in errors
+
+    incomplete_assertion =
+      artifact
+      |> update_in(["review_cases", Access.at(0), "assertion"], fn assertion ->
+        Map.drop(assertion, ["confidence", "scope", "target_urn"])
+      end)
+      |> refinalize()
+
+    assert {:error, errors} = ScopeArtifact.validate(incomplete_assertion)
     assert "review case must carry an allowed needs-review assertion" in errors
   end
 
