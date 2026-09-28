@@ -100,7 +100,8 @@ defmodule PramanaWeb.MCP.Tools.GetGlosses do
       root_offsets: g.root_offsets,
       commentary_offsets: g.commentary_offsets,
       method: g.method,
-      confidence: g.confidence
+      confidence: g.confidence,
+      review_warnings: g.review_warnings
     }
   end
 end

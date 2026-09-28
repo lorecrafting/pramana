@@ -648,14 +648,27 @@ defmodule Pramana.Commentary do
   def glosses_on(root_urn, opts \\ []) when is_binary(root_urn) do
     limit = Keyword.get(opts, :limit, 20)
 
-    from(a in CommentaryAlignment,
-      where: a.root_urn == ^root_urn,
-      order_by: [desc: a.length],
-      limit: ^limit,
-      preload: [commentary_text: ^Text.preload_without_body()]
-    )
-    |> Repo.all()
-    |> Enum.map(&present/1)
+    glosses =
+      from(a in CommentaryAlignment,
+        where: a.root_urn == ^root_urn,
+        order_by: [desc: a.length],
+        limit: ^limit,
+        preload: [commentary_text: ^Text.preload_without_body()]
+      )
+      |> Repo.all()
+      |> Enum.map(&present/1)
+
+    case glosses do
+      [] ->
+        []
+
+      [%{root_work_id: root_work_id} | _] ->
+        warnings = root_work_id |> Pramana.Relations.commentaries_on() |> review_warnings()
+
+        Enum.map(glosses, fn gloss ->
+          Map.put(gloss, :review_warnings, Map.get(warnings, gloss.commentary_work_id, []))
+        end)
+    end
   end
 
   @doc """
@@ -770,6 +783,11 @@ defmodule Pramana.Commentary do
       end)
       |> Enum.sort_by(&(-&1.lemmas))
 
+    warnings = commentary_work_id |> Pramana.Relations.explains() |> review_warnings()
+
+    roots =
+      Enum.map(roots, &Map.put(&1, :review_warnings, Map.get(warnings, &1.root_work_id, [])))
+
     %{
       commentary_work_id: commentary_work_id,
       lemmas: Enum.sum(Enum.map(roots, & &1.lemmas)),
@@ -830,6 +848,19 @@ defmodule Pramana.Commentary do
       method: a.method,
       confidence: a.confidence
     }
+  end
+
+  defp review_warnings(relations) do
+    relations
+    |> Enum.filter(&(&1.review_status == "needs_review"))
+    |> Enum.group_by(& &1.work_id, fn relation ->
+      %{
+        relation: relation.relation,
+        method: relation.method,
+        status: relation.review_status,
+        reason: relation.review_reason
+      }
+    end)
   end
 
   @doc """

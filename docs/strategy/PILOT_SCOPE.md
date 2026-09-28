@@ -24,6 +24,7 @@ The materializer uses:
 - at most **2 relation hops**, matching the frozen acceptance ceiling;
 - only non-model assertion methods: catalogue, manifest, title_match, lemma_match,
   shared_text;
+- retain assertions marked `needs_review` in traversal and identify them in the artifact;
 - only CBETA / Taishō (cbeta.T) works in the first pilot scope.
 
 An llm work-relation assertion cannot put a work into pilot scope. Relation semantics are
@@ -125,8 +126,10 @@ For every admitted edge the artifact retains:
 - a digest of the assertion evidence.
 
 Several assertion methods for one relation are corroboration, not duplicate edges. Each
-assertion retains its inspectable evidence object plus a SHA-256 of that evidence so a
-reviewer can judge the relation rather than trusting an opaque hash alone.
+assertion retains its inspectable evidence object plus a SHA-256 of that evidence, and its
+review status and reason. `needs_review` links still expand scope; the artifact counts them
+separately. The label asks for source and edition review and never asserts that a link is
+false or already verified.
 
 Works outside CBETA/Taishō, model-only relation assertions, and role-incoherent relation
 rows are excluded and counted rather than silently disappearing.
@@ -145,7 +148,9 @@ A zero means "the accepted work relation has no current-bake passage alignment,"
 
 ## Deterministic artifact
 
-The saved schema is pramana-pilot-scope/v2. Version 2 makes the quotation-length selection parameter and receipt-verification boundary explicit; v1 artifacts are not silently reinterpreted.
+The saved schema is pramana-pilot-scope/v3. Version 3 binds each relation assertion's
+review status and reason and counts the admitted assertions needing review. Older artifacts
+are not silently reinterpreted.
 
 It contains:
 
@@ -185,9 +190,11 @@ A later review may change pilot_scope to ready only when it has:
 2. a live materializer output generated against that release with no drift;
 3. reviewed top-ten demand rows and ranking denominators;
 4. all four verified Āgamas;
-5. complete expanded-work and relation lists;
+5. complete expanded-work and relation lists, including visible `needs_review` assertions;
 6. passage-alignment coverage;
-7. source/rights review covering **every expanded work**, not only the seeds;
+7. rights review covering **every expanded work**, not only the seeds; source-link verdicts
+   may remain open for assertions visibly marked `needs_review`, and their pilot cases must
+   be reported separately from unflagged-link cases;
 8. `mix pramana.pilot.derivations --bake-id <source-bake-id>` passes using current,
    clean pilot-scope receipts for quotation scan, title relations, shared-text relations
    and commentary alignment;

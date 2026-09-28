@@ -128,6 +128,59 @@ defmodule PramanaWeb.MCP.GetCommentariesTest do
       end
     end
 
+    test "carries a source review warning into the answer" do
+      relation =
+        Repo.get_by!(Pramana.Corpus.WorkRelation,
+          source_work_id: "T1718",
+          target_work_id: "T0262"
+        )
+
+      relation
+      |> Ecto.Changeset.change(
+        review_status: "needs_review",
+        review_reason: "Check the source edition"
+      )
+      |> Repo.update!()
+
+      data = call!(%{work_id: "T0262"})
+
+      work =
+        data["groups"] |> Enum.flat_map(& &1["works"]) |> Enum.find(&(&1["work_id"] == "T1718"))
+
+      assert work["review_status"] == "needs_review"
+      assert work["review_reason"] == "Check the source edition"
+
+      [step | _] = call!(%{work_id: "T1718", direction: "this_explains"})["chain"]
+      assert step["review_status"] == "needs_review"
+    end
+
+    test "upward answer retains a flagged corroborating assertion beside the chain" do
+      {:ok, relation} =
+        Relations.assert(%{
+          source_work_id: "T1718",
+          target_work_id: "T0262",
+          relation: "comments_on",
+          method: "shared_text"
+        })
+
+      relation
+      |> Ecto.Changeset.change(
+        review_status: "needs_review",
+        review_reason: "Check the source edition"
+      )
+      |> Repo.update!()
+
+      data = call!(%{work_id: "T1718", direction: "this_explains"})
+
+      assertions =
+        data["assertions_by_source"]
+        |> Enum.find(&(&1["source_work_id"] == "T1718"))
+        |> Map.fetch!("assertions")
+
+      assert Enum.sort(Enum.map(assertions, & &1["method"])) == ["catalogue", "shared_text"]
+      assert Enum.any?(assertions, &(&1["review_status"] == "needs_review"))
+    end
+
     test "says plainly that these works are NOT the text they explain" do
       # The whole reason relations exist is that this distinction survives into the
       # answer rather than being flattened.

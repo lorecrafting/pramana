@@ -137,6 +137,31 @@ defmodule Pramana.RelationsTest do
       assert length(Relations.commentaries_on("T0262")) == 1
     end
 
+    test "reasserting a flagged link keeps its review warning" do
+      attrs = %{
+        source_work_id: "T1718",
+        target_work_id: "T0262",
+        relation: "comments_on",
+        method: "shared_text"
+      }
+
+      {:ok, relation} = Relations.assert(attrs)
+
+      relation
+      |> Ecto.Changeset.change(
+        review_status: "needs_review",
+        review_reason: "Check the source edition"
+      )
+      |> Repo.update!()
+
+      {:ok, _} = Relations.assert(Map.put(attrs, :evidence, %{"shared_passages" => 4}))
+
+      assert [link] = Relations.commentaries_on("T0262")
+      assert link.review_status == "needs_review"
+      assert link.review_reason == "Check the source edition"
+      assert link.evidence == %{"shared_passages" => 4}
+    end
+
     test "keeps the same relation asserted by two methods, because corroboration is information" do
       base = %{source_work_id: "T1718", target_work_id: "T0262", relation: "comments_on"}
 

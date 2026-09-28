@@ -350,6 +350,8 @@ defmodule Pramana.Corpus.WorkRelation do
     field :confidence, :string, default: "asserted"
     field :method, :string
     field :evidence, :map, default: %{}
+    field :review_status, :string, default: "unflagged"
+    field :review_reason, :string
 
     timestamps(type: :utc_datetime_usec)
   end
@@ -366,6 +368,7 @@ defmodule Pramana.Corpus.WorkRelation do
     |> check_constraint(:scope, name: :work_relations_scope_known)
     |> check_constraint(:confidence, name: :work_relations_confidence_known)
     |> check_constraint(:method, name: :work_relations_method_known)
+    |> check_constraint(:review_status, name: :work_relations_review_state)
     |> check_constraint(:target_work_id, name: :work_relations_has_target)
     |> check_constraint(:target_urn, name: :work_relations_passage_needs_urn)
     |> check_constraint(:source_work_id, name: :work_relations_no_self_reference)

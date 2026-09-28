@@ -129,6 +129,14 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
   defp upward(work_id) do
     chain = Relations.resolve_root(work_id)
 
+    assertions_by_source =
+      [work_id | Enum.map(chain, & &1.work_id)]
+      |> Enum.uniq()
+      |> Enum.map(fn source ->
+        %{source_work_id: source, assertions: Relations.explains(source)}
+      end)
+      |> Enum.reject(&(&1.assertions == []))
+
     # A relation whose target is NOT in the corpus cannot be walked, but it is still an
     # assertion. Reporting only the walkable chain made the Huang Nianzu commentary —
     # which explicitly declares `comments_on: xia-lianju-conflation` — come back as "not
@@ -147,6 +155,7 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
       # into a claim that it explains the sūtra directly.
       chain: chain,
       depth: length(chain),
+      assertions_by_source: assertions_by_source,
       unresolved_targets: unresolved,
       note: upward_note(work_id, chain, unresolved)
     }
@@ -198,7 +207,9 @@ defmodule PramanaWeb.MCP.Tools.GetCommentaries do
       # How this link was established, and how strongly. Never averaged away.
       method: w.method,
       confidence: w.confidence,
-      evidence: w.evidence
+      evidence: w.evidence,
+      review_status: w.review_status,
+      review_reason: w.review_reason
     }
   end
 

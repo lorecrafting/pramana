@@ -160,6 +160,37 @@ defmodule Pramana.Pilot.ScopeTest do
     assert artifact["denominators"]["alignment_rows"] == 2
   end
 
+  test "a needs-review relation remains in scope with its warning and changes scope identity" do
+    input = input_fixture()
+    {:ok, baseline} = Scope.build(input)
+
+    flagged =
+      Map.update!(input, :relation_rows, fn rows ->
+        Enum.map(rows, fn row ->
+          if row.source_work_id == "T1800" do
+            %{row | review_status: "needs_review", review_reason: "Edition identity is disputed"}
+          else
+            row
+          end
+        end)
+      end)
+
+    {:ok, artifact} = Scope.build(flagged)
+    assert :ok = ScopeArtifact.validate(artifact)
+    assert artifact["scope_content_sha256"] != baseline["scope_content_sha256"]
+    assert artifact["denominators"]["needs_review_relation_assertion_count"] == 1
+
+    edge = Enum.find(artifact["relations"], &(&1["source_work_id"] == "T1800"))
+
+    assert [
+             %{
+               "review_status" => "needs_review",
+               "review_reason" => "Edition identity is disputed"
+             }
+           ] =
+             edge["assertions"]
+  end
+
   test "unrelated work, relation and alignment rows do not perturb the scope hash" do
     input = input_fixture()
     {:ok, baseline} = Scope.build(input)
@@ -283,7 +314,9 @@ defmodule Pramana.Pilot.ScopeTest do
       target_urn: nil,
       confidence: confidence,
       method: method,
-      evidence: %{"fixture" => true}
+      evidence: %{"fixture" => true},
+      review_status: "unflagged",
+      review_reason: nil
     }
   end
 

@@ -14,6 +14,7 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
   alias Pramana.Corpus.Loader
   alias Pramana.Corpus.Text
   alias Pramana.Normalize.CBETA
+  alias Pramana.Relations
   alias Pramana.Repo
   alias PramanaWeb.MCP.Tools.GetCommentaryOutline
 
@@ -105,6 +106,30 @@ defmodule PramanaWeb.MCP.GetCommentaryOutlineTest do
     assert [root] = payload["roots"]
     assert root["root_work_id"] == "T0223"
     assert [%{"juan" => 1, "lemmas" => 1}] = root["juan"]
+  end
+
+  test "a flagged link warns beside its root outline" do
+    align!("pramana:cbeta.T:T0223_001@p0001a01")
+
+    {:ok, relation} =
+      Relations.assert(%{
+        source_work_id: "T1509",
+        target_work_id: "T0223",
+        relation: "comments_on",
+        method: "shared_text"
+      })
+
+    relation
+    |> Ecto.Changeset.change(
+      review_status: "needs_review",
+      review_reason: "Check the source edition"
+    )
+    |> Repo.update!()
+
+    assert [root] = call!(%{work_id: "T1509"})["roots"]
+
+    assert [%{"status" => "needs_review", "reason" => "Check the source edition"}] =
+             root["review_warnings"]
   end
 
   # The defect this tool was built to avoid: a lemma anchored to a range URN equals no

@@ -34,6 +34,26 @@ defmodule PramanaWeb.ReaderPassageLiveTest do
       refute html =~ "Showing the"
     end
 
+    test "marks a gloss whose work relation needs source review", %{conn: conn} do
+      align!(1)
+
+      insert_work_relation!(
+        source_work_id: "T2187",
+        target_work_id: "T0262",
+        relation: "comments_on"
+      )
+      |> Ecto.Changeset.change(
+        review_status: "needs_review",
+        review_reason: "Check the source edition"
+      )
+      |> Repo.update!()
+
+      {:ok, _view, html} = live(conn, ~p"/passage?#{[urn: @root_urn]}")
+
+      assert html =~ "Needs review"
+      assert html =~ ~s(href="/works/T2187")
+    end
+
     defp align!(count) do
       root = Repo.one!(from(s in Pramana.Corpus.Segment, where: s.urn == ^@root_urn))
       original = Repo.one!(from(t in Text, where: t.work_id == "T2187"))

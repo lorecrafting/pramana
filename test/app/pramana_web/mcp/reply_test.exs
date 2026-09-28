@@ -3,8 +3,8 @@ defmodule PramanaWeb.MCP.ReplyTest do
   Success and error responses carry the same recorded provenance and caller arguments.
   These records do not freeze the corpus or guarantee identical replay results.
   """
-  # Both reply paths query recorded identities and need an isolated sandbox connection.
-  use Pramana.DataCase, async: true
+  # Release stamping takes a database advisory lock; concurrent sandbox transactions can deadlock.
+  use Pramana.DataCase, async: false
 
   alias Pramana.Corpus.Bake, as: BakeSchema
   alias Pramana.Release

@@ -33,9 +33,15 @@ The first Chinese user pilot is bounded to:
 
 1. the existing **14-work demand-weighted CBETA seed set** used by the current Chinese
    English-index experiment; plus
-2. works connected to those seeds by accepted typed `comments_on` or
+2. works connected to those seeds by admitted typed `comments_on` or
    `subcommentary_of` relations, traversed to a bounded depth; plus
-3. passage-level commentary alignments belonging to those accepted relations.
+3. passage-level commentary alignments belonging to those admitted relations.
+
+An admitted relation may carry `needs_review`. The pilot keeps it visible so readers can
+encounter and evaluate uncertainty; the label and reason travel with the scope artifact
+and reader. Such a link is a candidate for exploration, not a verified edition claim.
+Cases that use flagged links are reported separately, and a qualified evaluator still
+supplies an independent source judgment for each measured task.
 
 The four Āgamas give broad early-Buddhist question coverage while the citation-weighted
 roots provide high-demand Mahāyāna material. The attached commentary neighborhoods supply
@@ -238,7 +244,8 @@ its selectivity cliff on large predicate sets.
 After retrieval identifies a root/treatise passage or work:
 
 1. classify the work role already stored in provenance;
-2. expand only accepted typed `comments_on` / `subcommentary_of` relationships;
+2. expand only scope-admitted typed `comments_on` / `subcommentary_of` relationships,
+   carrying any `needs_review` warning into the reader;
 3. prefer existing passage-level commentary alignments when they target the hit;
 4. show unaligned work-level commentary as "commentary on this work", not
    "commentary on this passage";
