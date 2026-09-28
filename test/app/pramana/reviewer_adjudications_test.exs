@@ -3,6 +3,7 @@ defmodule Pramana.ReviewerAdjudicationsTest do
   import ExUnit.CaptureIO
 
   alias Mix.Tasks.Pramana.Reviews, as: ReviewsTask
+  alias Pramana.AccountsFixtures
   alias Pramana.Corpus.Release, as: ReleaseSchema
   alias Pramana.Corpus.Work
   alias Pramana.Corpus.WorkRelation
@@ -69,13 +70,10 @@ defmodule Pramana.ReviewerAdjudicationsTest do
       )
       |> Repo.insert!()
 
-    {:ok, account, _credential} =
-      ReviewerAccess.provision(
-        "reviewer.decision",
-        "silent principal",
-        artifact["scope_content_sha256"],
-        "operator-1"
-      )
+    account = AccountsFixtures.user_fixture(%{email: "reviewer.decision@example.test"})
+
+    {:ok, _grant} =
+      ReviewerAccess.grant_scope(account.email, artifact["scope_content_sha256"], "operator-1")
 
     {:ok, review_case} =
       Reviews.get_case(artifact, [artifact["scope_content_sha256"]], account.id, relation.id)
@@ -92,6 +90,7 @@ defmodule Pramana.ReviewerAdjudicationsTest do
 
     %{
       artifact: artifact,
+      account: account,
       relation: relation,
       fingerprint: review_case.fingerprint,
       judgment: judgment,
@@ -104,7 +103,7 @@ defmodule Pramana.ReviewerAdjudicationsTest do
     {:ok, current} = Adjudications.inspect_case(context.artifact, context.relation.id)
     assert current.in_scope
     assert current.fingerprint == context.fingerprint
-    assert [%{judgment: judgment, display_name: "silent principal"}] = current.judgments
+    assert [%{judgment: judgment, email: "reviewer.decision@example.test"}] = current.judgments
     assert judgment.id == context.judgment.id
 
     context.relation
@@ -128,7 +127,7 @@ defmodule Pramana.ReviewerAdjudicationsTest do
       end)
 
     assert output =~ "Matches selected scope: false"
-    assert output =~ "(STALE) by silent principal"
+    assert output =~ "(STALE) by reviewer.decision@example.test"
   end
 
   test "supported disposition preserves evidence and invalidates old scope and receipt",
@@ -234,9 +233,9 @@ defmodule Pramana.ReviewerAdjudicationsTest do
       |> Repo.insert!()
 
     assert {:ok, _grant} =
-             ReviewerAccess.grant_scope("reviewer.decision", scope_sha, "operator-1")
+             ReviewerAccess.grant_scope(context.account.email, scope_sha, "operator-1")
 
-    account = Repo.get_by!(Pramana.Reviewer.Account, login_id: "reviewer.decision")
+    account = context.account
     assert {:ok, first} = Reviews.get_case(artifact, [scope_sha], account.id, context.relation.id)
     assert {:ok, next_case} = Reviews.get_case(artifact, [scope_sha], account.id, other.id)
 

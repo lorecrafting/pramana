@@ -36,6 +36,13 @@ research corpus. [runtime.exs](../config/runtime.exs) owns production configurat
 Set `DATABASE_URL` to the intended public database, provide a strong `SECRET_KEY_BASE`,
 and configure host, network exposure and TLS appropriately for the hosting environment.
 `PRAMANA_PUBLIC=1` enables the public-data guard during application startup.
+Public signup is routed through the browser pipeline; it creates an ordinary Phoenix
+account only in this public database. It does not create a private reviewer account or grant.
+Until a production mail delivery adapter and sender are configured, registration and
+magic-link requests return HTTP 503 before creating an account or token. No delivery
+service is configured in this repository; development uses `/dev/mailbox` through
+Swoosh Local and tests use Swoosh Test. Keep public registration unavailable in
+production until actual confirmation delivery has been configured and verified.
 
 A release without Mix has a smaller administrative surface. It is **not physically
 incapable of database mutation**: database privileges, application code and credentials
@@ -107,8 +114,11 @@ when changing what may be served. This is not continuous policing of external wr
 your account's grants. Supply a non-superuser serving login that owns neither the database
 nor its schemas/tables and cannot inherit or `SET ROLE` to an owner/writer. It should have
 CONNECT, schema USAGE, and SELECT on the corpus tables needed by the reader/MCP, without
-DML, sequence USAGE/UPDATE, CREATE, TEMPORARY or Oban-table privileges. Keep migration and
-ingestion credentials out of the serving environment. A non-serving release invocation
+DML on corpus/reviewer tables, sequence USAGE/UPDATE, CREATE, TEMPORARY or Oban-table
+privileges. Keep migration and
+ingestion credentials out of the serving environment. Public signup and sessions require
+narrow INSERT/UPDATE on `users` and INSERT/DELETE on `users_tokens`; they do not require
+corpus, reviewer-grant or reviewer-judgment writes. A non-serving release invocation
 is not automatically unprivileged; its supplied database credentials still govern access.
 
 Provisioning is an explicit administrator action against the intended dedicated database,
@@ -132,6 +142,10 @@ SELECT format('GRANT SELECT ON TABLE %I.%I TO pramana_reader', schemaname, table
 FROM pg_tables WHERE schemaname = 'public'
   AND tablename NOT LIKE 'oban_%' AND tablename NOT LIKE 'reviewer_%'
   AND tablename <> 'schema_migrations';
+-- For generated account routes only; review these separately from corpus grants.
+GRANT INSERT ON users TO pramana_reader;
+GRANT UPDATE (email, hashed_password, confirmed_at, updated_at) ON users TO pramana_reader;
+GRANT INSERT, DELETE ON users_tokens TO pramana_reader;
 ```
 
 The last query prints statements for review; it deliberately does not execute them or
@@ -140,9 +154,10 @@ from PUBLIC/other roles, column-level grants, ownership, security-definer routin
 extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` membership.
 New tables after migrations require a reviewed grant update; do not solve a missing read
 privilege by granting ownership, ALL, sequence access or membership in an administrator.
-In particular, the public login must have **no SELECT** on `reviewer_accounts`,
-`reviewer_grants`, `reviewer_judgments` or `reviewer_dispositions`. Revoke any older blanket grants when adding
-these tables.
+In particular, the public login must have **no SELECT** on `reviewer_grants` or
+`reviewer_judgments` or `reviewer_dispositions`. The `users` table is in this public
+database and cannot contain private reviewer identities. Revoke any older blanket grants
+when adding reviewer tables.
 Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
 `has_any_column_privilege`, `has_sequence_privilege`, `pg_has_role`) plus real denied-write
 checks in an isolated copy. `default_transaction_read_only` is not a substitute for grants:
@@ -152,7 +167,8 @@ The smoke runner provisions only its disposable fixtures, not this example role 
 operator database. Its [privilege probe](../ci/serving_privileges.exs) runs by RPC inside
 the same release serving the HTTP/MCP positive case and explicitly uses read-write
 transactions for denials. It excludes owner/superuser/role-switch/schema/sequence and
-ordinary corpus-write authority, while queries and verification must work. This proves
+ordinary corpus-write authority, while generated account routes get only the auth-table
+writes listed above. This proves
 the tested schema and paths, not every possible function/extension or query in your
 installation. A separate privileged public case proves absence of the Oban instance is
 not merely a permission failure. The same queued fixture then runs through real ingestion;
@@ -175,35 +191,43 @@ and [access-privilege inquiries](https://www.postgresql.org/docs/18/functions-in
 
 ## Private source-review runtime
 
-`PRAMANA_REVIEWER=1` starts a separate HTTP endpoint. It exposes reviewer sign-in and
+`PRAMANA_REVIEWER=1` starts a separate HTTP endpoint. It exposes generated Phoenix
+sign-in, account settings and
 granted scopes; it does not start the ordinary reader, LiveView socket, MCP server,
 embedding server or Oban. It cannot be combined with `PRAMANA_PUBLIC=1`. Put this
 endpoint behind a private network and TLS; its signed session cookie is Secure and
-expires after eight hours. `PHX_SERVER=true` is still required to serve HTTP.
+expires after eight hours. Set `PRAMANA_REVIEWER_URL` to the private HTTPS origin
+(no path); private magic links use that configured origin and a separate cookie.
+`PHX_SERVER=true` is still required to serve HTTP.
 This mode does not itself approve any corpus for participant or public use.
 
-Run migrations and account management with separate operator credentials and with
-`PRAMANA_REVIEWER` unset. After reviewing the exact pilot scope hash, provision one
-individual login and grant. “silent principal” is only the initial display name; the
-operator must bind the login ID and privately delivered credential to one real person.
-The random credential is printed once, stored only as a digest, and must not be copied
-into this repository or a shared account. For example:
+The private research database and public serving database are separate. A public signup
+does not create a private account. Run migrations and account management against the
+private database with separate operator credentials and `PRAMANA_REVIEWER` unset.
+The auth migration renames an empty `reviewer_accounts` table to `users` so existing
+grant/judgment foreign keys persist. If that old table contains rows, the migration
+stops and requires an explicit identity migration before rollout.
+
+After reviewing the exact pilot scope hash, provision an individual by email, have that
+person confirm the private magic link, then grant access. “silent principal” is a display
+name only; the operator must bind the email to one real person outside this repository.
+Production mail delivery is currently unconfigured, so provisioning fails before account
+creation and the private review service is not ready to onboard real reviewers. For example:
 
 ```sh
 mix compile
-mix pramana.reviewer provision --login-id INDIVIDUAL_ID \
-  --display-name 'silent principal' --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
-mix pramana.reviewer grant --login-id INDIVIDUAL_ID \
-  --scope-sha256 NEXT_EXACT_SCOPE_HASH --operator OPERATOR_ID
-mix pramana.reviewer revoke --login-id INDIVIDUAL_ID \
+PRAMANA_REVIEWER_URL=https://private.example mix pramana.reviewer provision --email INDIVIDUAL_EMAIL
+mix pramana.reviewer grant --email INDIVIDUAL_EMAIL \
   --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
-mix pramana.reviewer rotate --login-id INDIVIDUAL_ID
-mix pramana.reviewer revoke --login-id INDIVIDUAL_ID
+mix pramana.reviewer revoke --email INDIVIDUAL_EMAIL \
+  --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
+mix pramana.reviewer revoke --email INDIVIDUAL_EMAIL --operator OPERATOR_ID
 ```
 
-The last command disables the account. Rotating the credential or disabling the
-account invalidates previous sessions; revoking its last scope removes access on the
-next request. Provisioning does not create a reviewer judgment or clear `needs_review`.
+The last command revokes all live scopes; the next private request is denied even if its
+session remains signed in. Provisioning never grants access, creates a reviewer judgment
+or clears `needs_review`. Phoenix account settings handle password changes and session
+token invalidation.
 
 Mount the exact reviewed `mix pramana.pilot.scope` JSON artifact read-only in the private
 runtime and set `PRAMANA_REVIEW_SCOPE_PATH` to that file. The private page validates its
@@ -239,10 +263,11 @@ Regenerate the shared-text v4 receipt after adjudicating historical links, which
 explicitly counted as supported carryovers.
 
 Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
-on only the needed corpus and reviewer account, grant, judgment and disposition tables,
-and INSERT only on `reviewer_judgments`. Give it no UPDATE or DELETE there, no INSERT on
-`reviewer_dispositions`, and no corpus, account
-or grant DML, sequence, schema-create, role-switch or Oban privilege. Keep the operator
+on only the needed corpus, users, users_tokens, grant, judgment and disposition tables, INSERT only on
+`reviewer_judgments` and `users_tokens`, DELETE only on `users_tokens`, and UPDATE only
+on the `users` columns needed for confirmation/settings: `email`, `hashed_password`,
+`confirmed_at`, `updated_at`. Give it no INSERT, UPDATE or DELETE on dispositions, no UPDATE or DELETE on judgments, no corpus or
+grant DML, user INSERT/DELETE, sequence, schema-create, role-switch or Oban privilege. Keep the operator
 credential out of the HTTP environment. Independently inspect the actual role's
 effective privileges before deployment; the container smoke test proves this boundary
 for its own synthetic role and database, not for an operator installation.

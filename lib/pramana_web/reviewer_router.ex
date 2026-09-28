@@ -1,24 +1,54 @@
 defmodule PramanaWeb.ReviewerRouter do
-  @moduledoc "Only sign-in and granted reviewer pages are routable in private mode."
+  @moduledoc "Generated account sign-in and granted reviewer pages in private mode."
 
   use PramanaWeb, :router
+  import PramanaWeb.UserAuth
+  alias Pramana.ReviewerAccess
 
   pipeline :browser do
     plug :accepts, ["html"]
     plug :fetch_session
+    plug :fetch_live_flash
+    plug :mark_reviewer_endpoint
+    plug :put_root_layout, html: {PramanaWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :fetch_current_scope_for_user
+  end
+
+  defp mark_reviewer_endpoint(conn, _opts), do: assign(conn, :private_reviewer, true)
+
+  if Application.compile_env(:pramana, :dev_routes) do
+    scope "/dev" do
+      pipe_through :browser
+      forward "/mailbox", Plug.Swoosh.MailboxPreview
+    end
   end
 
   pipeline :reviewer do
-    plug PramanaWeb.ReviewerAuth
+    plug :require_authenticated_user
+    plug :require_reviewer_grant
+  end
+
+  pipeline :authenticated do
+    plug :require_authenticated_user
   end
 
   scope "/", PramanaWeb do
     pipe_through :browser
 
-    get "/login", ReviewerController, :login
-    post "/login", ReviewerController, :create_session
+    get "/users/log-in", UserSessionController, :new
+    get "/users/log-in/:token", UserSessionController, :confirm
+    post "/users/log-in", UserSessionController, :create
+    delete "/users/log-out", UserSessionController, :delete
+  end
+
+  scope "/", PramanaWeb do
+    pipe_through [:browser, :authenticated]
+
+    get "/users/settings", UserSettingsController, :edit
+    put "/users/settings", UserSettingsController, :update
+    get "/users/settings/confirm-email/:token", UserSettingsController, :confirm_email
   end
 
   scope "/", PramanaWeb do
@@ -27,6 +57,15 @@ defmodule PramanaWeb.ReviewerRouter do
     get "/", ReviewerController, :index
     get "/reviews/:id", ReviewerJudgmentController, :show
     post "/reviews/:id", ReviewerJudgmentController, :create
-    post "/logout", ReviewerController, :logout
+  end
+
+  defp require_reviewer_grant(conn, _opts) do
+    scopes = ReviewerAccess.active_scopes(conn.assigns.current_scope.user.id)
+
+    if scopes == [] do
+      conn |> send_resp(403, "Reviewer grant required") |> halt()
+    else
+      assign(conn, :reviewer_scopes, scopes)
+    end
   end
 end

@@ -85,7 +85,7 @@ defmodule Mix.Tasks.Pramana.Reviews do
     label = if current, do: "current", else: "STALE"
 
     Mix.shell().info("""
-    Judgment #{judgment.id} (#{label}) by #{item.display_name} [#{item.login_id}]
+    Judgment #{judgment.id} (#{label}) by #{item.email}
       #{judgment.judgment}; fingerprint #{judgment.assertion_fingerprint}
       reason: #{judgment.rationale}
       sources: #{judgment.source_references}

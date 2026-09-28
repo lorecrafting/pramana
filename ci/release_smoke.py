@@ -149,6 +149,15 @@ SELECT format('GRANT SELECT ON TABLE %I.%I TO {READER}', schemaname, tablename)
 FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename NOT LIKE 'reviewer_%' AND tablename <> 'schema_migrations'
 \\gexec
+SELECT format('GRANT INSERT ON %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users'
+\\gexec
+SELECT format('GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users'
+\\gexec
+SELECT format('GRANT INSERT,DELETE ON %I.%I TO {READER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users_tokens'
+\\gexec
 """)
         self.sql("forbidden", f"""
 GRANT CONNECT ON DATABASE forbidden TO {REVIEWER};
@@ -158,6 +167,12 @@ FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename <> 'schema_migrations'
 \\gexec
 GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
+SELECT format('GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON %I.%I TO {REVIEWER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users'
+\\gexec
+SELECT format('GRANT INSERT,DELETE ON %I.%I TO {REVIEWER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename='users_tokens'
+\\gexec
 """)
         self.sql("audit_denied", f"REVOKE SELECT ON sources FROM {READER};")
 
@@ -172,6 +187,7 @@ GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
                       "-e", "PORT=4000", "-e", "POOL_SIZE=2",
                       "-e", "PRAMANA_EMBEDDING=0", "-e", f"PRAMANA_PUBLIC={'1' if public else '0'}",
                       "-e", f"PRAMANA_REVIEWER={'1' if role == REVIEWER else '0'}",
+                      "-e", "PRAMANA_REVIEWER_URL=https://localhost",
                       "-e", f"PRAMANA_SMOKE_ROLE={role}",
                       "--mount", f"type=bind,source={self.raw},target=/app/raw,readonly"]
 
@@ -283,8 +299,8 @@ GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
             if not self.state(name)["Running"]:
                 raise RuntimeError("private reviewer runtime exited before HTTP readiness")
             try:
-                status, _, body = self.request(port, "/login")
-                if status == 200 and "Reviewer sign in" in body:
+                status, _, body = self.request(port, "/users/log-in")
+                if status == 200 and 'id="login_form_magic"' in body:
                     break
             except (OSError, http.client.HTTPException):
                 pass

@@ -3,12 +3,12 @@ defmodule Pramana.Reviewer.Adjudications do
 
   import Ecto.Query
 
+  alias Pramana.Accounts.User
   alias Pramana.Corpus.Release, as: ReleaseSchema
   alias Pramana.Corpus.WorkRelation
   alias Pramana.Pilot.ScopeArtifact
   alias Pramana.Release.Selection
   alias Pramana.Repo
-  alias Pramana.Reviewer.Account
   alias Pramana.Reviewer.Disposition
   alias Pramana.Reviewer.Judgment
   alias Pramana.Reviewer.Reviews
@@ -104,11 +104,11 @@ defmodule Pramana.Reviewer.Adjudications do
 
   defp judgments(assertion_id) do
     from(j in Judgment,
-      join: a in Account,
+      join: a in User,
       on: a.id == j.account_id,
       where: j.assertion_id == ^assertion_id,
       order_by: [asc: j.inserted_at, asc: j.id],
-      select: %{judgment: j, display_name: a.display_name, login_id: a.login_id}
+      select: %{judgment: j, email: a.email}
     )
     |> Repo.all()
   end

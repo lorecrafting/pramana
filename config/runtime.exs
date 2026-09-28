@@ -14,6 +14,10 @@ config :pramana, PramanaWeb.ReviewerEndpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
+  config :pramana, Pramana.Mailer, adapter: Swoosh.Adapters.Local
+  config :pramana, :mail_from, "unconfigured@example.invalid"
+  config :pramana, :mail_delivery_ready, false
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """
@@ -54,9 +58,30 @@ if config_env() == :prod do
     ],
     secret_key_base: secret_key_base
 
+  reviewer_url = System.get_env("PRAMANA_REVIEWER_URL")
+
+  reviewer_origin =
+    if reviewer_url do
+      case URI.parse(reviewer_url) do
+        %URI{scheme: "https", host: host, path: path, userinfo: nil, query: nil, fragment: nil} =
+            uri
+        when is_binary(host) and path in [nil, "", "/"] ->
+          [host: host, scheme: "https", port: uri.port || 443]
+
+        _ ->
+          raise "PRAMANA_REVIEWER_URL must be the private HTTPS origin"
+      end
+    else
+      if System.get_env("PRAMANA_REVIEWER") in ["true", "1"] and
+           System.get_env("PHX_SERVER") in ["true", "1"],
+         do: raise("PRAMANA_REVIEWER_URL is required for private reviewer serving")
+
+      [host: System.get_env("APP_HOST", "example.com")]
+    end
+
   config :pramana, PramanaWeb.ReviewerEndpoint,
     server: System.get_env("PHX_SERVER") in ["true", "1"],
-    url: [host: System.get_env("APP_HOST", "example.com")],
+    url: reviewer_origin,
     http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
     secret_key_base: secret_key_base
 

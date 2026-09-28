@@ -3,6 +3,7 @@ defmodule Pramana.Reviewer.Reviews do
 
   import Ecto.Query
 
+  alias Pramana.Accounts.User
   alias Pramana.Corpus.Quotation
   alias Pramana.Corpus.Release, as: ReleaseSchema
   alias Pramana.Corpus.Text
@@ -12,7 +13,6 @@ defmodule Pramana.Reviewer.Reviews do
   alias Pramana.Release
   alias Pramana.Release.Selection
   alias Pramana.Repo
-  alias Pramana.Reviewer.Account
   alias Pramana.Reviewer.Disposition
   alias Pramana.Reviewer.Grant
   alias Pramana.Reviewer.Judgment
@@ -97,7 +97,7 @@ defmodule Pramana.Reviewer.Reviews do
   end
 
   @doc "Appends a judgment only while account, grant, release and assertion still match."
-  def submit(%Account{} = account, artifact, id, params) when is_map(params) do
+  def submit(%User{} = account, artifact, id, params) when is_map(params) do
     scope_sha256 = artifact["scope_content_sha256"]
     release_id = artifact["release"]["release_id"]
 
@@ -163,8 +163,8 @@ defmodule Pramana.Reviewer.Reviews do
 
   defp authorized_rows(account, scope_sha256, release_id) do
     from r in WorkRelation,
-      join: a in Account,
-      on: a.id == ^account.id and a.active and a.session_epoch == ^account.session_epoch,
+      join: a in User,
+      on: a.id == ^account.id and not is_nil(a.confirmed_at),
       join: g in Grant,
       on:
         g.account_id == a.id and g.scope_sha256 == ^scope_sha256 and

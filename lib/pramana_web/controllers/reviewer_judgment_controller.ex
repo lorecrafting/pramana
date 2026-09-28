@@ -10,7 +10,7 @@ defmodule PramanaWeb.ReviewerJudgmentController do
            Reviews.get_case(
              artifact,
              conn.assigns.reviewer_scopes,
-             conn.assigns.reviewer_account.id,
+             conn.assigns.current_scope.user.id,
              id
            ) do
       body = page(review_case)
@@ -26,7 +26,7 @@ defmodule PramanaWeb.ReviewerJudgmentController do
   def create(conn, %{"id" => id} = params) do
     with {:ok, artifact} <- Reviews.configured_scope(),
          {:ok, _judgment} <-
-           Reviews.submit(conn.assigns.reviewer_account, artifact, id, Map.delete(params, "id")) do
+           Reviews.submit(conn.assigns.current_scope.user, artifact, id, Map.delete(params, "id")) do
       redirect(conn, to: "/reviews/#{id}")
     else
       {:error, :scope_not_configured} -> send_resp(conn, 503, "Review scope unavailable")

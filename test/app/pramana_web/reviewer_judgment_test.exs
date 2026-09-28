@@ -1,6 +1,8 @@
 defmodule PramanaWeb.ReviewerJudgmentTest do
   use Pramana.DataCase, async: false
 
+  alias Pramana.Accounts
+  alias Pramana.AccountsFixtures
   alias Pramana.Corpus.Quotation
   alias Pramana.Corpus.Release, as: ReleaseSchema
   alias Pramana.Corpus.Source
@@ -50,19 +52,16 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     Repo.insert!(%Selection{id: 1, release_id: release.id, selected_at: DateTime.utc_now()})
     relation = seed_case!(artifact)
 
-    {:ok, account, credential} =
-      ReviewerAccess.provision(
-        "reviewer.case",
-        "silent principal",
-        artifact["scope_content_sha256"],
-        "operator-1"
-      )
+    account = AccountsFixtures.user_fixture()
 
-    %{artifact: artifact, account: account, credential: credential, relation: relation}
+    {:ok, _} =
+      ReviewerAccess.grant_scope(account.email, artifact["scope_content_sha256"], "operator-1")
+
+    %{artifact: artifact, account: account, relation: relation}
   end
 
   test "a granted reviewer sees source context and appends an attributed judgment", context do
-    login = login("reviewer.case", context.credential)
+    login = login(context.account)
     relation = context.relation
     home = get("/", login)
     assert home.status == 200
@@ -100,7 +99,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   end
 
   test "the restricted reviewer database role can submit without corpus write grants", context do
-    login = login("reviewer.case", context.credential)
+    login = login(context.account)
     page = get("/reviews/#{context.relation.id}", login)
     role = "pramana_review_test_#{System.unique_integer([:positive])}"
 
@@ -108,7 +107,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     Repo.query!("GRANT USAGE ON SCHEMA public TO #{role}")
 
     Repo.query!("""
-    GRANT SELECT ON reviewer_accounts, reviewer_grants, reviewer_judgments,
+    GRANT SELECT ON users, users_tokens, reviewer_grants, reviewer_judgments,
       reviewer_dispositions,
       work_relations, release_selection, releases TO #{role}
     """)
@@ -126,7 +125,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   end
 
   test "an old form refuses changed assertion evidence or release", context do
-    login = login("reviewer.case", context.credential)
+    login = login(context.account)
     page = get("/reviews/#{context.relation.id}", login)
     attrs = submission(page)
 
@@ -161,21 +160,22 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   end
 
   test "disagreeing reviewers keep separate append-only histories", context do
-    first_login = login("reviewer.case", context.credential)
+    first_login = login(context.account)
     first_page = get("/reviews/#{context.relation.id}", first_login)
 
     assert post(context.relation.id, first_login, first_page, submission(first_page)).status ==
              302
 
-    {:ok, second_account, second_credential} =
-      ReviewerAccess.provision(
-        "reviewer.second",
-        "Second reviewer",
+    second_account = AccountsFixtures.user_fixture()
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        second_account.email,
         context.artifact["scope_content_sha256"],
         "operator-1"
       )
 
-    second_login = login("reviewer.second", second_credential)
+    second_login = login(second_account)
     second_page = get("/reviews/#{context.relation.id}", second_login)
     refute second_page.resp_body =~ "The quoted passage does not establish this edition."
 
@@ -197,7 +197,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   end
 
   test "full-length Chinese fields reach the form", context do
-    login = login("reviewer.case", context.credential)
+    login = login(context.account)
     page = get("/reviews/#{context.relation.id}", login)
 
     attrs =
@@ -213,7 +213,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
 
   test "an invalid configured artifact exposes no cases or submission path", context do
     File.write!(System.fetch_env!("PRAMANA_REVIEW_SCOPE_PATH"), "{}")
-    login = login("reviewer.case", context.credential)
+    login = login(context.account)
     assert get("/reviews/#{context.relation.id}", login).status == 503
     assert get("/", login).resp_body =~ "No current review cases are available"
     assert Repo.aggregate(Judgment, :count) == 0
@@ -223,14 +223,16 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     relation = context.relation
     assert get("/reviews/#{relation.id}", nil).status == 302
 
-    {:ok, _other, other_credential} =
-      ReviewerAccess.provision("reviewer.other", "Other", String.duplicate("f", 64), "operator-1")
+    other = AccountsFixtures.user_fixture()
 
-    other_login = login("reviewer.other", other_credential)
+    {:ok, _} =
+      ReviewerAccess.grant_scope(other.email, String.duplicate("f", 64), "operator-1")
+
+    other_login = login(other)
     assert get("/reviews/#{relation.id}", other_login).status == 404
     other_home = get("/", other_login)
 
-    valid_login = login("reviewer.case", context.credential)
+    valid_login = login(context.account)
     page = get("/reviews/#{relation.id}", valid_login)
     attrs = submission(page)
     assert post(relation.id, other_login, other_home, attrs).status == 409
@@ -240,30 +242,20 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
 
     assert :ok =
              ReviewerAccess.revoke_scope(
-               "reviewer.case",
+               context.account.email,
                context.artifact["scope_content_sha256"],
                "operator-1"
              )
 
-    assert post(relation.id, valid_login, page, attrs).status == 302
+    assert post(relation.id, valid_login, page, attrs).status == 403
     assert Repo.aggregate(Judgment, :count) == 0
   end
 
-  defp login(login_id, credential) do
-    page = ReviewerEndpoint.call(Plug.Test.conn(:get, "/login"), [])
-    csrf = field(page.resp_body, "_csrf_token")
+  defp login(account) do
+    token = Accounts.generate_user_session_token(account)
 
-    Plug.Test.conn(
-      :post,
-      "/login",
-      URI.encode_query(%{
-        "_csrf_token" => csrf,
-        "login_id" => login_id,
-        "credential" => credential
-      })
-    )
-    |> Plug.Conn.put_req_header("content-type", "application/x-www-form-urlencoded")
-    |> Plug.Test.recycle_cookies(page)
+    Plug.Test.conn(:get, "/")
+    |> Plug.Test.init_test_session(%{user_token: token})
     |> ReviewerEndpoint.call([])
   end
 
