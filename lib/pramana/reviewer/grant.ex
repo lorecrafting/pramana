@@ -1,5 +1,5 @@
 defmodule Pramana.Reviewer.Grant do
-  @moduledoc "Explicit authority to review links in one exact pilot scope."
+  @moduledoc "Explicit authority for source review or rights signoff in one exact pilot scope."
 
   use Ecto.Schema
   import Ecto.Changeset
@@ -21,6 +21,7 @@ defmodule Pramana.Reviewer.Grant do
     grant
     |> cast(attrs, [:account_id, :scope_sha256, :granted_by])
     |> validate_required([:account_id, :scope_sha256, :granted_by])
+    |> validate_inclusion(:capability, ~w(relation_review rights_signoff))
     |> validate_format(:scope_sha256, ~r/\A[0-9a-f]{64}\z/)
     |> validate_length(:granted_by, min: 1, max: 100)
     |> foreign_key_constraint(:account_id)

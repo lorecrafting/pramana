@@ -47,10 +47,26 @@ defmodule PramanaWeb.Router do
       plug :require_reviewer_grant
     end
 
+    pipeline :rights_signer do
+      plug :reject_public_review_mode
+      plug :require_authenticated_user
+      plug :require_rights_signoff
+    end
+
+    scope "/", PramanaWeb do
+      pipe_through [:browser, :rights_signer]
+
+      get "/reviews/rights", ReviewerRightsController, :index
+      get "/reviews/rights/:item_id", ReviewerRightsController, :show
+      post "/reviews/rights/:item_id", ReviewerRightsController, :create
+    end
+
     scope "/", PramanaWeb do
       pipe_through [:browser, :reviewer]
 
       get "/reviews", ReviewerController, :index
+      get "/reviews/works/:work_id", ReviewerWorkController, :show
+      post "/reviews/works/:work_id", ReviewerWorkController, :create
       get "/reviews/:id", ReviewerJudgmentController, :show
       post "/reviews/:id", ReviewerJudgmentController, :create
     end

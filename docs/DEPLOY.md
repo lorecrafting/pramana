@@ -154,8 +154,9 @@ from PUBLIC/other roles, column-level grants, ownership, security-definer routin
 extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` membership.
 New tables after migrations require a reviewed grant update; do not solve a missing read
 privilege by granting ownership, ALL, sequence access or membership in an administrator.
-In particular, the public login must have **no SELECT** on `reviewer_grants` or
-`reviewer_judgments` or `reviewer_dispositions`. The `users` table is in this public
+In particular, the public login must have **no SELECT** on `reviewer_grants`,
+`reviewer_judgments`, `reviewer_work_judgments`, `reviewer_rights_judgments` or
+`reviewer_dispositions`. The `users` table is in this public
 database and cannot contain private reviewer identities. Revoke any older blanket grants
 when adding reviewer tables.
 Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
@@ -191,12 +192,15 @@ and [access-privilege inquiries](https://www.postgresql.org/docs/18/functions-in
 
 ## Local pilot on one endpoint
 
-In development, the reader at `http://localhost:4000` also serves `/reviews` and
-`/reviews/:id`. Search, work pages and MCP remain open to visitors without an account.
+In development, the reader at `http://localhost:4000` also serves `/reviews`,
+`/reviews/works/:work_id`, `/reviews/:id` and `/reviews/rights/:item_id`. Search,
+work pages and MCP remain open to visitors without an account.
 Reviewers sign up at `/users/register` and use the same account session on both surfaces.
 The existing, live `reviewer_grants` record is the reviewer permission; a signed-in
-account without an active grant gets 403. A Reviews link appears after a grant is active.
-Only an operator can grant the exact scope.
+account without an active `relation_review` grant gets 403 on source review; a
+separate `rights_signoff` grant controls the rights checklist. A Reviews link appears
+after a source grant is active. Only an operator can grant either capability for the
+exact scope.
 Use the same local database and the saved scope artifact:
 
 ```sh
@@ -239,8 +243,10 @@ mix compile
 PRAMANA_REVIEWER_URL=https://private.example mix pramana.reviewer provision --email INDIVIDUAL_EMAIL
 mix pramana.reviewer grant --email INDIVIDUAL_EMAIL \
   --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
+mix pramana.reviewer grant --email RIGHTS_SIGNER_EMAIL \
+  --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID --capability rights_signoff
 mix pramana.reviewer revoke --email INDIVIDUAL_EMAIL \
-  --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
+  --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID --capability relation_review
 mix pramana.reviewer revoke --email INDIVIDUAL_EMAIL --operator OPERATOR_ID
 ```
 
@@ -251,8 +257,12 @@ token invalidation.
 
 Mount the exact reviewed `mix pramana.pilot.scope` JSON artifact read-only in the private
 runtime and set `PRAMANA_REVIEW_SCOPE_PATH` to that file. The private page validates its
-schema and content hash before listing cases. A submission rechecks the individual
-account, live grant, selected release and current relation evidence. Where available,
+schema and content hash before listing work recommendations and uncertain-link cases.
+The rights page presents a separate resource-by-operation checklist, including the five
+DILA digital editions individually. Source and rights submissions append attributed
+records bound to the exact scope and release; they do not alter corpus rows or enable
+blocked uses. Each submission rechecks the individual account, matching live grant,
+selected release and current evidence. Where available,
 the source context shows current-bake shared passages with their CBETA Taishō addresses,
 exact character offsets and text hashes. Shared text alone does not prove which edition
 a commentary explains.
@@ -283,10 +293,11 @@ Regenerate the shared-text v4 receipt after adjudicating historical links, which
 explicitly counted as supported carryovers.
 
 Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
-on only the needed corpus, users, users_tokens, grant, judgment and disposition tables, INSERT only on
-`reviewer_judgments` and `users_tokens`, DELETE only on `users_tokens`, and UPDATE only
+on only the needed corpus, users, users_tokens, grant, judgment and disposition tables;
+include `reviewer_work_judgments` and `reviewer_rights_judgments`. Grant INSERT only on
+the three judgment tables and `users_tokens`, DELETE only on `users_tokens`, and UPDATE only
 on the `users` columns needed for confirmation/settings: `email`, `hashed_password`,
-`confirmed_at`, `updated_at`. Give it no INSERT, UPDATE or DELETE on dispositions, no UPDATE or DELETE on judgments, no corpus or
+`confirmed_at`, `updated_at`. Give it no INSERT, UPDATE or DELETE on dispositions, no UPDATE or DELETE on any judgments, no corpus or
 grant DML, user INSERT/DELETE, sequence, schema-create, role-switch or Oban privilege. Keep the operator
 credential out of the HTTP environment. Independently inspect the actual role's
 effective privileges before deployment; the container smoke test proves this boundary

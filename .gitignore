@@ -44,6 +44,9 @@ sources.lock.local.json
 /priv/static/*-*.txt
 /priv/static/*.gz
 /assets/node_modules/
+/node_modules/
+/playwright-report/
+/test-results/
 
 # Dialyzer
 /priv/plts

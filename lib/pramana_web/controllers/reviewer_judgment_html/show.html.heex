@@ -1,0 +1,194 @@
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
+  <div class="mx-auto max-w-3xl space-y-7" id="link-review-page">
+    <a href="/reviews#links" class="link link-primary text-sm">← Uncertain links</a>
+
+    <header class="space-y-3">
+      <span class="badge badge-warning badge-outline">Needs review</span>
+      <h1 class="text-3xl font-semibold tracking-tight">
+        Does this commentary explain that text?
+      </h1>
+      <p class="text-base-content/70">{@review_case.candidate.assertion["review_reason"]}</p>
+    </header>
+
+    <section class="grid gap-3 sm:grid-cols-2" aria-label="Works in this proposed link">
+      <div class="rounded-2xl border border-base-300 bg-base-100 p-5">
+        <p class="text-xs font-bold uppercase tracking-widest text-base-content/55">Commentary</p>
+        <p class="mt-2 text-lg font-medium" lang="zh-Hant">{@review_case.source.title}</p>
+        <p class="mt-1 text-sm text-base-content/65">
+          {@review_case.source.id} · {@review_case.source.text_role} · {@review_case.source.attributed_author ||
+            "Author not recorded"}
+        </p>
+      </div>
+      <div class="rounded-2xl border border-base-300 bg-base-100 p-5">
+        <p class="text-xs font-bold uppercase tracking-widest text-base-content/55">
+          Proposed target
+        </p>
+        <p class="mt-2 text-lg font-medium" lang="zh-Hant">{@review_case.target.title}</p>
+        <p class="mt-1 text-sm text-base-content/65">
+          {@review_case.target.id} · {@review_case.target.text_role} · {@review_case.target.attributed_author ||
+            "Author not recorded"}
+        </p>
+      </div>
+    </section>
+
+    <section
+      class="rounded-2xl border border-base-300 bg-base-100 p-5 sm:p-6"
+      aria-labelledby="link-evidence-heading"
+    >
+      <h2 id="link-evidence-heading" class="text-xl font-semibold">Evidence to examine</h2>
+      <p class="mt-1 text-sm text-base-content/65">
+        CBETA Taishō witness. Shared wording alone does not establish the direction or identity of a commentary link.
+      </p>
+      <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-base-content/60">Method</dt>
+          <dd class="font-medium">{@review_case.candidate.assertion["method"]}</dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Confidence</dt>
+          <dd class="font-medium">{@review_case.candidate.assertion["confidence"]}</dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Claim scope</dt>
+          <dd class="font-medium">{@review_case.candidate.assertion["scope"]}</dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Target address</dt>
+          <dd class="break-all font-medium">
+            {@review_case.candidate.assertion["target_urn"] || "Whole work"}
+          </dd>
+        </div>
+      </dl>
+
+      <h3 class="mt-6 font-semibold">Shared passage examples</h3>
+      <p :if={@review_case.quotations == []} class="mt-2 text-sm text-base-content/60">
+        No current-bake shared passage example is available for this pair.
+      </p>
+      <ol :if={@review_case.quotations != []} class="mt-3 space-y-4">
+        <li :for={quote <- @review_case.quotations} class="rounded-xl bg-base-200 p-4">
+          <blockquote
+            class="border-l-2 border-primary pl-4 text-lg leading-relaxed"
+            lang="zh-Hant"
+          >
+            {quote.text}
+          </blockquote>
+          <dl class="mt-3 space-y-1 break-all text-xs text-base-content/65">
+            <div>
+              <dt class="inline font-medium">Commentary:</dt>
+
+              <dd class="inline">
+                {quote.source_urn} · characters [{quote.source_start}, {quote.source_end})
+              </dd>
+            </div>
+            <div>
+              <dt class="inline font-medium">Target:</dt>
+
+              <dd class="inline">
+                {quote.target_urn} · characters [{quote.target_start}, {quote.target_end})
+              </dd>
+            </div>
+            <div>
+              <dt class="inline font-medium">Text SHA-256:</dt>
+
+              <dd class="inline"><code>{quote.text_sha256}</code></dd>
+            </div>
+          </dl>
+        </li>
+      </ol>
+
+      <details class="mt-5">
+        <summary class="cursor-pointer text-sm font-medium">Assertion evidence details</summary>
+        <pre class="mt-2 overflow-x-auto rounded-xl bg-base-200 p-3 text-xs">{@evidence}</pre>
+      </details>
+    </section>
+
+    <section
+      class="rounded-2xl border border-primary/25 bg-primary/5 p-5 sm:p-6"
+      aria-labelledby="link-decision-heading"
+    >
+      <h2 id="link-decision-heading" class="text-xl font-semibold">Your link judgment</h2>
+      <p class="mt-1 text-sm text-base-content/70">
+        Base your judgment on the cited source and edition. Explain uncertainty rather than guessing.
+      </p>
+      <.form
+        for={@form}
+        id="link-review-form"
+        action={"/reviews/#{@review_case.row.id}"}
+        class="mt-5 space-y-4"
+      >
+        <.input field={@form[:scope_sha256]} type="hidden" value={@review_case.scope_sha256} />
+        <.input field={@form[:release_id]} type="hidden" value={@review_case.release_id} />
+        <.input
+          field={@form[:assertion_fingerprint]}
+          type="hidden"
+          value={@review_case.fingerprint}
+        />
+        <.input
+          field={@form[:judgment]}
+          type="select"
+          label="Judgment"
+          prompt="Choose a judgment"
+          options={[
+            {"Supported", "supported"},
+            {"Disputed", "disputed"},
+            {"Cannot determine", "cannot_determine"}
+          ]}
+          required
+        />
+        <.input
+          field={@form[:rationale]}
+          type="textarea"
+          label="Why?"
+          rows="4"
+          maxlength="2000"
+          required
+          placeholder="Explain how the source evidence supports your judgment."
+        />
+        <.input
+          field={@form[:source_references]}
+          type="textarea"
+          label="Sources checked"
+          rows="3"
+          maxlength="2000"
+          required
+          placeholder="Edition, passage address, work ID, or stable source link."
+        />
+        <p class="text-xs text-base-content/60">
+          This saves an attributed observation. An operator must separately adjudicate before a warning can change.
+        </p>
+        <.button class="btn btn-primary w-full sm:w-auto">Save link judgment</.button>
+      </.form>
+    </section>
+
+    <section class="space-y-3" aria-labelledby="link-history-heading">
+      <h2 id="link-history-heading" class="text-xl font-semibold">Your previous judgments</h2>
+      <p
+        :if={@review_case.judgments == []}
+        class="rounded-xl border border-dashed border-base-300 p-4 text-sm text-base-content/60"
+      >
+        No judgment for this link yet.
+      </p>
+      <ol :if={@review_case.judgments != []} class="space-y-3">
+        <li
+          :for={judgment <- @review_case.judgments}
+          class="rounded-xl border border-base-300 bg-base-100 p-4"
+        >
+          <div class="flex flex-wrap justify-between gap-2">
+            <strong class="capitalize">{String.replace(judgment.judgment, "_", " ")}</strong><time
+              class="text-xs text-base-content/60"
+              datetime={DateTime.to_iso8601(judgment.inserted_at)}
+            >{Calendar.strftime(judgment.inserted_at, "%Y-%m-%d %H:%M UTC")}</time>
+          </div>
+          <p class="mt-2 whitespace-pre-wrap text-sm">{judgment.rationale}</p>
+          <p class="mt-2 whitespace-pre-wrap text-xs text-base-content/65">
+            <strong>Sources:</strong> {judgment.source_references}
+          </p>
+        </li>
+      </ol>
+    </section>
+  </div>
+</Layouts.app>

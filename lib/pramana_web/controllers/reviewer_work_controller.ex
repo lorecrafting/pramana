@@ -1,46 +1,45 @@
-defmodule PramanaWeb.ReviewerJudgmentController do
+defmodule PramanaWeb.ReviewerWorkController do
   use PramanaWeb, :controller
 
-  alias Pramana.Pilot.ScopeArtifact
   alias Pramana.Reviewer.Reviews
+  alias Pramana.Reviewer.WorkReviews
 
-  def show(conn, %{"id" => id}) do
+  def show(conn, %{"work_id" => work_id}) do
     with {:ok, artifact} <- Reviews.configured_scope(),
-         {:ok, review_case} <-
-           Reviews.get_case(
+         {:ok, work_review} <-
+           WorkReviews.get(
              artifact,
              conn.assigns.reviewer_scopes,
              conn.assigns.current_scope.user.id,
-             id
+             work_id
            ) do
       render(conn, :show,
-        review_case: review_case,
-        evidence: ScopeArtifact.encode(review_case.candidate.assertion["evidence"]),
-        form: Phoenix.Component.to_form(%{}, as: :review)
+        work_review: work_review,
+        form: Phoenix.Component.to_form(%{}, as: :work_review)
       )
     else
       {:error, :scope_not_configured} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalid_scope_artifact} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalidated_scope} -> send_resp(conn, 503, "Review scope unavailable")
-      _ -> send_resp(conn, 404, "Review case unavailable")
+      _ -> send_resp(conn, 404, "Work unavailable in this scope")
     end
   end
 
-  def create(conn, %{"id" => id} = params) do
-    submission = Map.get(params, "review", Map.delete(params, "id"))
+  def create(conn, %{"work_id" => work_id} = params) do
+    submission = Map.get(params, "work_review", Map.delete(params, "work_id"))
 
     with {:ok, artifact} <- Reviews.configured_scope(),
          {:ok, _judgment} <-
-           Reviews.submit(conn.assigns.current_scope.user, artifact, id, submission) do
+           WorkReviews.submit(conn.assigns.current_scope.user, artifact, work_id, submission) do
       conn
-      |> put_flash(:info, "Link judgment saved with your name and sources.")
-      |> redirect(to: "/reviews/#{id}")
+      |> put_flash(:info, "Work recommendation saved with your name and sources.")
+      |> redirect(to: "/reviews/works/#{work_id}")
     else
       {:error, :scope_not_configured} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalid_scope_artifact} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalidated_scope} -> send_resp(conn, 503, "Review scope unavailable")
       {:error, :invalid_submission} -> send_resp(conn, 400, "Invalid review submission")
-      _ -> send_resp(conn, 409, "Review case changed or access expired")
+      _ -> send_resp(conn, 409, "Work changed or access expired")
     end
   end
 end

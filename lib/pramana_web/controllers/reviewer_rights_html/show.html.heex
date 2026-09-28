@@ -1,0 +1,110 @@
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
+  <div class="mx-auto max-w-3xl space-y-7" id="rights-decision-page">
+    <a href="/reviews/rights" class="link link-primary text-sm">← Rights checklist</a>
+
+    <header class="space-y-3">
+      <span class="badge badge-primary badge-outline">Operation-specific rights</span>
+      <p class="text-sm font-semibold uppercase tracking-wider text-base-content/60">
+        {@rights_review.item["resource"]}
+      </p>
+      <h1 class="text-3xl font-semibold tracking-tight">{@rights_review.item["operations"]}</h1>
+    </header>
+
+    <section
+      class="rounded-2xl border border-base-300 bg-base-100 p-5 sm:p-6"
+      aria-labelledby="boundary-heading"
+    >
+      <h2 id="boundary-heading" class="text-lg font-semibold">Current project boundary</h2>
+      <p class="mt-2 text-base-content/75">{@rights_review.item["boundary"]}</p>
+      <p class="mt-3 text-xs text-base-content/60">
+        Your assessment is recorded against this exact wording and pilot scope. It does not change runtime policy.
+      </p>
+    </section>
+
+    <section
+      class="rounded-2xl border border-primary/25 bg-primary/5 p-5 sm:p-6"
+      aria-labelledby="rights-decision-heading"
+    >
+      <h2 id="rights-decision-heading" class="text-xl font-semibold">Your rights assessment</h2>
+      <p class="mt-1 text-sm text-base-content/70">
+        Choose the state supported by the terms or permission you reviewed. If evidence is missing or conflicting, mark it unresolved.
+      </p>
+      <.form
+        for={@form}
+        id="rights-decision-form"
+        action={"/reviews/rights/#{@rights_review.item["id"]}"}
+        class="mt-5 space-y-4"
+      >
+        <.input field={@form[:scope_sha256]} type="hidden" value={@rights_review.scope_sha256} />
+        <.input field={@form[:release_id]} type="hidden" value={@rights_review.release_id} />
+        <.input field={@form[:item_fingerprint]} type="hidden" value={@rights_review.fingerprint} />
+        <.input
+          field={@form[:decision]}
+          type="select"
+          label="Rights state for this use"
+          prompt="Choose a state"
+          options={[
+            {"Permitted for this use", "permitted"},
+            {"Prohibited", "prohibited"},
+            {"Separate permission required", "permission_required"},
+            {"Unresolved", "unresolved"}
+          ]}
+          required
+        />
+        <.input
+          field={@form[:rationale]}
+          type="textarea"
+          label="Reason and conditions"
+          rows="4"
+          maxlength="2000"
+          required
+          placeholder="Explain how the evidence applies to this resource and operation. State any limits."
+        />
+        <.input
+          field={@form[:evidence_references]}
+          type="textarea"
+          label="Terms or permission checked"
+          rows="3"
+          maxlength="2000"
+          required
+          placeholder="Primary terms URL and version, permission record, or other exact evidence."
+        />
+        <p class="text-xs text-base-content/60">
+          Signed with {@current_scope.user.email} and the submission time. Prior assessments remain visible.
+        </p>
+        <.button class="btn btn-primary w-full sm:w-auto">Save rights assessment</.button>
+      </.form>
+    </section>
+
+    <section class="space-y-3" aria-labelledby="rights-history-heading">
+      <h2 id="rights-history-heading" class="text-xl font-semibold">Your previous assessments</h2>
+      <p
+        :if={@rights_review.judgments == []}
+        class="rounded-xl border border-dashed border-base-300 p-4 text-sm text-base-content/60"
+      >
+        No assessment for this use yet.
+      </p>
+      <ol :if={@rights_review.judgments != []} class="space-y-3">
+        <li
+          :for={judgment <- @rights_review.judgments}
+          class="rounded-xl border border-base-300 bg-base-100 p-4"
+        >
+          <div class="flex flex-wrap justify-between gap-2">
+            <strong class="capitalize">{String.replace(judgment.decision, "_", " ")}</strong><time
+              class="text-xs text-base-content/60"
+              datetime={DateTime.to_iso8601(judgment.inserted_at)}
+            >{Calendar.strftime(judgment.inserted_at, "%Y-%m-%d %H:%M UTC")}</time>
+          </div>
+          <p class="mt-2 whitespace-pre-wrap text-sm">{judgment.rationale}</p>
+          <p class="mt-2 whitespace-pre-wrap text-xs text-base-content/65">
+            <strong>Evidence:</strong> {judgment.evidence_references}
+          </p>
+        </li>
+      </ol>
+    </section>
+  </div>
+</Layouts.app>

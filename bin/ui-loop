@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+ui_dir=$(mktemp -d "${TMPDIR:-/tmp}/pramana-ui.XXXXXX")
+export MIX_ENV=dev PRAMANA_DATABASE="pramana_ui_$$" PORT="${UI_PORT:-4107}"
+export UI_BASE_URL="http://127.0.0.1:$PORT" UI_SEED_DIR="$ui_dir"
+export PRAMANA_REVIEW_SCOPE_PATH="$ui_dir/scope.json"
+export PRAMANA_PUBLIC=0
+created=0
+server_pid=
+cleanup() {
+  if [[ -n "$server_pid" ]]; then
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+  fi
+  if [[ "$created" == 1 ]]; then mix ecto.drop --force >/dev/null || true; fi
+  rm -rf "$ui_dir"
+}
+trap cleanup EXIT
+
+mix ecto.create
+created=1
+if ! mix ecto.migrate >"$ui_dir/migrate.log" 2>&1; then
+  tail -n 50 "$ui_dir/migrate.log"
+  exit 1
+fi
+mix run test/ui/seed.exs
+PHX_SERVER=true mix phx.server >"$ui_dir/server.log" 2>&1 &
+server_pid=$!
+for _ in {1..60}; do
+  if curl --silent --fail "$UI_BASE_URL/users/log-in" >/dev/null; then break; fi
+  if ! kill -0 "$server_pid" 2>/dev/null; then cat "$ui_dir/server.log"; exit 1; fi
+  sleep 1
+done
+if ! curl --silent --fail "$UI_BASE_URL/users/log-in" >/dev/null; then
+  cat "$ui_dir/server.log"
+  exit 1
+fi
+export UI_MAGIC_LINK
+UI_MAGIC_LINK=$(cat "$ui_dir/magic-link")
+npm run ui:test -- "$@"
+echo "Screenshots and failure traces: tmp/ui/results"

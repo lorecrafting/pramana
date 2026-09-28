@@ -44,7 +44,8 @@ defmodule Pramana.CI.ServingPrivileges do
     SELECT count(*) FROM pg_class
     WHERE relnamespace = 'public'::regnamespace AND
       relname NOT IN ('users', 'users_tokens') AND
-      (current_user <> 'smoke_reviewer' OR relname <> 'reviewer_judgments') AND
+      (current_user <> 'smoke_reviewer' OR relname NOT IN
+        ('reviewer_judgments','reviewer_work_judgments','reviewer_rights_judgments')) AND
       CASE WHEN relkind IN ('r','p','v','m','f') THEN
         (relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
          OR has_table_privilege(oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
@@ -77,6 +78,10 @@ defmodule Pramana.CI.ServingPrivileges do
           "SELECT * FROM oban_jobs LIMIT 0",
           "UPDATE reviewer_judgments SET rationale = rationale WHERE false",
           "DELETE FROM reviewer_judgments WHERE false",
+          "UPDATE reviewer_work_judgments SET rationale = rationale WHERE false",
+          "DELETE FROM reviewer_work_judgments WHERE false",
+          "UPDATE reviewer_rights_judgments SET rationale = rationale WHERE false",
+          "DELETE FROM reviewer_rights_judgments WHERE false",
           "INSERT INTO reviewer_dispositions (id) SELECT NULL::uuid WHERE false",
           "DELETE FROM users WHERE false",
           "UPDATE users_tokens SET token = token WHERE false",
@@ -101,7 +106,13 @@ defmodule Pramana.CI.ServingPrivileges do
     end
 
     if expected_role == "smoke_reader" do
-      for table <- ["reviewer_grants", "reviewer_judgments", "reviewer_dispositions"] do
+      for table <- [
+            "reviewer_grants",
+            "reviewer_judgments",
+            "reviewer_work_judgments",
+            "reviewer_rights_judgments",
+            "reviewer_dispositions"
+          ] do
         denied = Ecto.Adapters.SQL.query(Repo, "SELECT * FROM #{table} LIMIT 0", [])
 
         expect!(
@@ -114,33 +125,41 @@ defmodule Pramana.CI.ServingPrivileges do
         query!("SELECT count(*) FROM users") == [[0]] and
           query!("SELECT count(*) FROM reviewer_grants") == [[0]] and
           query!("SELECT count(*) FROM reviewer_judgments") == [[0]] and
+          query!("SELECT count(*) FROM reviewer_work_judgments") == [[0]] and
+          query!("SELECT count(*) FROM reviewer_rights_judgments") == [[0]] and
           query!("SELECT count(*) FROM reviewer_dispositions") == [[0]],
         "private reviewer cannot read review identity/evidence records"
       )
 
-      expect!(
-        query!("SELECT has_table_privilege('reviewer_judgments', 'INSERT')") == [[true]],
-        "private reviewer cannot append judgments"
-      )
+      for table <- [
+            "reviewer_judgments",
+            "reviewer_work_judgments",
+            "reviewer_rights_judgments"
+          ] do
+        expect!(
+          query!("SELECT has_table_privilege('#{table}', 'INSERT')") == [[true]],
+          "private reviewer cannot append #{table}"
+        )
 
-      expect!(
-        query!("""
-        SELECT has_table_privilege('reviewer_judgments',
-          'UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
-        """) == [[false]],
-        "private reviewer can alter existing judgments"
-      )
+        expect!(
+          query!("""
+          SELECT has_table_privilege('#{table}',
+            'UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
+          """) == [[false]],
+          "private reviewer can alter existing #{table}"
+        )
 
-      expect!(
-        query!("""
-        SELECT relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
-          OR has_any_column_privilege(oid, 'UPDATE,REFERENCES')
-        FROM pg_class WHERE oid = 'reviewer_judgments'::regclass
-        """) == [[false]],
-        "private reviewer owns or can alter a judgment column"
-      )
+        expect!(
+          query!("""
+          SELECT relowner = (SELECT oid FROM pg_roles WHERE rolname = current_user)
+            OR has_any_column_privilege(oid, 'UPDATE,REFERENCES')
+          FROM pg_class WHERE oid = '#{table}'::regclass
+          """) == [[false]],
+          "private reviewer owns or can alter a #{table} column"
+        )
 
-      query!("INSERT INTO reviewer_judgments (id) SELECT NULL::uuid WHERE false")
+        query!("INSERT INTO #{table} (id) SELECT NULL::uuid WHERE false")
+      end
     end
 
     expect!(

@@ -40,7 +40,7 @@ defmodule PramanaWeb.Layouts do
     <header class="navbar border-b border-base-300 px-4 sm:px-6 lg:px-8">
       <div class="flex-1">
         <a
-          href={if @private_reviewer, do: "/users/log-in", else: "/"}
+          href={if @private_reviewer, do: "/reviews", else: "/"}
           class="flex w-fit items-baseline gap-2"
         >
           <span class="text-lg font-semibold tracking-tight">Pramāṇa</span>

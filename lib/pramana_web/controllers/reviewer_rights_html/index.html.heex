@@ -1,0 +1,66 @@
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
+  <div class="mx-auto max-w-4xl space-y-7" id="rights-review-page">
+    <a href="/reviews" class="link link-primary text-sm">← Source review</a>
+
+    <header class="rounded-3xl border border-base-300 bg-base-200/50 p-6 sm:p-8">
+      <p class="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+        Separate rights signoff
+      </p>
+      <h1 class="mt-2 text-3xl font-semibold tracking-tight">Decide each use of the sources.</h1>
+      <p class="mt-3 max-w-2xl text-base-content/70">
+        Assess the exact resource and operation together. Record the permission or published terms you checked, and keep unresolved uses on hold.
+      </p>
+      <div class="mt-5 flex flex-wrap items-center gap-3">
+        <span class="badge badge-primary badge-outline h-auto px-3 py-2">
+          {Enum.count(@items, & &1.judgment)} / {length(@items)} assessed
+        </span>
+        <span class="text-xs text-base-content/60">Signed as {@current_scope.user.email}</span>
+      </div>
+    </header>
+
+    <div class="alert alert-info text-sm" role="note">
+      <.icon name="hero-information-circle" class="size-5 shrink-0" />
+      <span>
+        A recorded “permitted” finding does not turn on a blocked operation. Project policy and other pilot gates still need a separate change.
+      </span>
+    </div>
+
+    <section aria-labelledby="rights-items-heading" class="space-y-3">
+      <h2 id="rights-items-heading" class="text-2xl font-semibold">
+        Resource and operation checklist
+      </h2>
+      <a
+        :for={entry <- @items}
+        id={"right-#{entry.item["id"]}"}
+        href={"/reviews/rights/#{entry.item["id"]}"}
+        class="group block rounded-2xl border border-base-300 bg-base-100 p-5 transition hover:border-primary hover:shadow-sm"
+      >
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div class="max-w-2xl">
+            <p class="text-xs font-bold uppercase tracking-wider text-base-content/55">
+              {entry.item["resource"]}
+            </p>
+            <h3 class="mt-1 font-semibold">{entry.item["operations"]}</h3>
+            <p class="mt-2 text-sm text-base-content/65">{entry.item["boundary"]}</p>
+          </div>
+          <span :if={is_nil(entry.judgment)} class="badge badge-ghost">Not assessed</span>
+          <span :if={entry.judgment} class="badge badge-success badge-outline capitalize">
+            {String.replace(entry.judgment.decision, "_", " ")}
+          </span>
+        </div>
+        <p class="mt-3 text-sm font-medium text-primary group-hover:underline">
+          Open decision <span aria-hidden="true">→</span>
+        </p>
+      </a>
+    </section>
+
+    <details class="rounded-xl border border-base-300 p-4 text-xs text-base-content/65">
+      <summary class="cursor-pointer font-medium">Exact scope identity</summary>
+      <code class="mt-2 block break-all">{@scope_sha256}</code>
+    </details>
+  </div>
+</Layouts.app>

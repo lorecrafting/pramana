@@ -249,6 +249,16 @@ defmodule PramanaWeb.UserAuth do
     end
   end
 
+  def require_rights_signoff(conn, _opts) do
+    scopes = ReviewerAccess.active_scopes(conn.assigns.current_scope.user.id, "rights_signoff")
+
+    if scopes == [] do
+      conn |> send_resp(403, "Rights signoff grant required") |> halt()
+    else
+      assign(conn, :rights_scopes, scopes)
+    end
+  end
+
   defp maybe_store_return_to(%{method: "GET"} = conn) do
     put_session(conn, :user_return_to, current_path(conn))
   end

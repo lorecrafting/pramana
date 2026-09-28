@@ -57,7 +57,7 @@ use paid services. Read the task before executing it.
 | [`mix pramana.relations.parallels`](../lib/mix/tasks/pramana.relations.parallels.ex) | Derives work-level parallel_of from curated passage parallels |
 | [`mix pramana.relations.shared_text`](../lib/mix/tasks/pramana.relations.shared_text.ex) | Links Chinese commentaries to their roots through the quotation graph |
 | [`mix pramana.release.stamp`](../lib/mix/tasks/pramana.release.stamp.ex) | Records what the retrieval state currently is, for stamping on answers |
-| [`mix pramana.reviewer`](../lib/mix/tasks/pramana.reviewer.ex) | Operator-only Phoenix account provisioning, scoped grants and revocation for individual source reviewers |
+| [`mix pramana.reviewer`](../lib/mix/tasks/pramana.reviewer.ex) | Operator-only account provisioning and separate exact-scope source-review or rights-signoff grants and revocation |
 | [`mix pramana.reviews`](../lib/mix/tasks/pramana.reviews.ex) | Operator-only inspection and explicit adjudication of attributed commentary-link reviews |
 | [`mix pramana.sat.metadata`](../lib/mix/tasks/pramana.sat.metadata.ex) | Fetches IIIF metadata for the Taishō 56–84 works this corpus cannot show |
 | [`mix pramana.sc.chinese`](../lib/mix/tasks/pramana.sc.chinese.ex) | Ingests bilara-data's English of the Chinese Āgamas as renderings of CBETA |
