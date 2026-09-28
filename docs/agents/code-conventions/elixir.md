@@ -40,7 +40,7 @@ exceptions retained deliberately.
   reason.
 - **Pramāṇa only:** prefer the existing `Req` dependency for HTTP rather than adding a
   second HTTP client or using `:httpc` ad hoc without a documented need.
-- **Pramāṇa only:** the umbrella has a `mix precommit` convenience alias, but validation
+- **Pramāṇa only:** the app has a `mix precommit` convenience alias, but validation
   is governed by [`docs/TESTING.md`](../../TESTING.md). Do not treat `mix precommit` as
   proof of corpus, live-provider or other checks it does not run.
 

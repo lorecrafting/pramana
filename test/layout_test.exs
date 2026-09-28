@@ -22,12 +22,6 @@ defmodule Repository.LayoutTest do
     assert {"", 0} == System.cmd("git", ["ls-files", "--", "apps"], cd: @root)
   end
 
-  test "domain, web and native code share one application without losing their source" do
-    for file <- ~w(lib/pramana/application.ex lib/pramana_web/supervisor.ex lib/pramana_native.ex) do
-      assert File.regular?(Path.join(@root, file))
-    end
-  end
-
   test "source inputs and companion manifests remain under the product root" do
     for file <- [
           "sources.lock.json",

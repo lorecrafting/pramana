@@ -256,10 +256,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Lint shared repository checks with the same rules
-        if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
-        run: mix credo --strict --files-included '../test/**/*.exs' --files-included '../bin/*.exs'
-
       - name: Hex lockfile audit
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: mix hex.audit

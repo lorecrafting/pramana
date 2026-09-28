@@ -8,7 +8,7 @@ The default capacity is four. Trusted application configuration may choose anoth
 from 1 through 64:
 
 ```elixir
-config :pramana_web, PramanaWeb.CheckAdmission, max_active: 4
+config :pramana, PramanaWeb.CheckAdmission, max_active: 4
 ```
 
 Unknown keys, non-keyword configuration and invalid values fail startup. Client/report

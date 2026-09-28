@@ -150,7 +150,7 @@ execution budget, starting when the component is invoked. Trusted application
 configuration may shorten it:
 
 ```elixir
-config :pramana_web, PramanaWeb.MCP.Tools.VerifyReport, timeout_ms: 15_000
+config :pramana, PramanaWeb.MCP.Tools.VerifyReport, timeout_ms: 15_000
 ```
 
 The value must be an integer from 1 through 25,000. Unknown options and invalid
