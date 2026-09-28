@@ -198,9 +198,9 @@ work pages and MCP remain open to visitors without an account.
 Reviewers sign up at `/users/register` and use the same account session on both surfaces.
 The existing, live `reviewer_grants` record is the reviewer permission; a signed-in
 account without an active `relation_review` grant gets 403 on source review; a
-separate `rights_signoff` grant controls the rights checklist. A Reviews link appears
-after a source grant is active. Only an operator can grant either capability for the
-exact scope.
+separate `rights_signoff` grant controls the rights checklist. Reviews and Rights links
+appear only for matching active grants on the mounted scope. Only an operator can grant
+either capability for the exact scope.
 Use the same local database and the saved scope artifact:
 
 ```sh
