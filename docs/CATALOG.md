@@ -16,6 +16,7 @@ Titles do not establish currentness: read each document's scope and evidence lim
 - [`docs/agents/code-conventions/phoenix/liveview.md`](agents/code-conventions/phoenix/liveview.md)
 - [`docs/agents/code-conventions/README.md`](agents/code-conventions/README.md)
 - [`docs/agents/DEPENDENCY_REVIEW.md`](agents/DEPENDENCY_REVIEW.md)
+- [`docs/agents/QUALITY_CHECK_AUDIT.md`](agents/QUALITY_CHECK_AUDIT.md)
 - [`docs/agents/RULE_TRIGGERS.md`](agents/RULE_TRIGGERS.md)
 - [`docs/agents/WORKFLOW.md`](agents/WORKFLOW.md)
 - [`docs/CATALOG.md`](CATALOG.md)

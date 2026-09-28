@@ -37,6 +37,10 @@ Retire a finished record by deleting it and adding a pinned link to [retired fil
 
 ## Editing checklist
 
+Before adding a page or repeating guidance, check whether an existing owner can be
+edited or linked. In the final diff, cut duplicate facts, stale instructions and
+sections that teach nothing new; keep the evidence and limits that make a claim honest.
+
 Read the relevant source, schema, config and tests. Preserve stable rule numbers and
 legacy heading bookmarks when moving content. Rebase relative links, including links
 inside retained historical sections; do not silently drop the limitations or negative

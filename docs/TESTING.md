@@ -4,6 +4,13 @@ A green result only establishes what that check exercised. Run every command fro
 repository root. Never start paid inference
 or a public deployment merely to validate a documentation change.
 
+For a fast local pass on code and documentation, run `mix format --check-formatted`,
+`MIX_ENV=test mix compile --warnings-as-errors`, `MIX_ENV=test mix credo --strict`
+and `elixir bin/check_docs.exs`. These do not replace the database-backed tests or
+corpus gate below. Use [the dependency review runbook](agents/DEPENDENCY_REVIEW.md)
+for targeted `mix xref` questions. The [2026-09-27 quality-check audit](agents/QUALITY_CHECK_AUDIT.md)
+records which LokaCore checks fit this repository and which already exist here.
+
 | Change / question | Check | Prerequisites and limits |
 |---|---|---|
 | Documentation routing, links, rule coverage, task/tool indexes and layout | From the Git root: `elixir bin/check_docs.exs` | Elixir and Git only; no Mix dependencies, database, models or daemon |
@@ -153,6 +160,15 @@ separate required regressions; none is replaced by a transport test.
 ## Behavior-first test maintenance
 
 The [2026-09-15 test audit](RETIRED_FILES.md#retired-2026-09-24-the-single-product-cleanup)
-recorded finding dispositions, suite ownership and coverage exclusions. Each changed test should name the plausible regression its fixtures
-can distinguish. A count, successful return, or empty observation alone is not
+recorded finding dispositions, suite ownership and coverage exclusions. Each changed
+test should name the plausible regression its fixtures can distinguish. A count,
+successful return, or empty observation alone is not
 proof of filtering, ordering, no-effect safety, or fresh-VM behavior.
+
+Use expected results checked independently of the implementation: a literal answer,
+source fixture or published contract, not another call to the code under test. Exercise
+behavior on controlled input; avoid tests that only match source text, trivial forwarding
+or library behavior. Keep the smallest fixture that exposes a distinct failure. For a
+nontrivial new guard or behavior test, temporarily introduce its named regression,
+confirm the focused test fails, then restore the code. A custom checker always needs
+such a red control. Record what failed without treating a green suite as corpus evidence.
