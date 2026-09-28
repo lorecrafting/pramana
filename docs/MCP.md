@@ -201,7 +201,7 @@ provenance lookups after execution, network delivery or another tool's execution
 The shared admission pool bounds **report checks on one BEAM node only**; it does not
 bound other MCP tools, session queues, another node or end-to-end latency. Killing a
 BEAM worker cannot guarantee recall of already-dispatched database/native/model work.
-These limits also apply to stdio; `mix pramana.mcp.stdio` starts the `pramana_web`
+These limits also apply to stdio; `mix pramana.mcp.stdio` starts the `pramana`
 application before the stdio transport, so it uses the same node-local admission service.
 Transport disconnect is not a new cancellation promise. No database writes, migrations,
 automatic retries or historical replay snapshots are introduced. Rollback removes the

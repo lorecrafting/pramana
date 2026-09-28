@@ -54,7 +54,7 @@ dispatched PostgreSQL/native work. A permit is resource accounting, not evidence
 report is correct. Existing report deadlines, evidence states and release-identity rules
 remain separate.
 
-Both normal web serving and `mix pramana.mcp.stdio` start the `pramana_web` application,
+Both normal web serving and `mix pramana.mcp.stdio` start the `pramana` application,
 so the reader, Streamable HTTP MCP and stdio MCP use the same admission implementation
 within their respective BEAM node. Separate BEAM nodes still have separate pools.
 
