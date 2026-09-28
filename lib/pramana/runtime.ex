@@ -5,8 +5,8 @@ defmodule Pramana.Runtime do
   One function so far, and it lives here rather than on `Pramana.Repo` for a reason the
   boundary test enforces: `mix pramana.mcp.stdio` needs it and lives in `lib/pramana_web`, which
   `Architecture.BoundariesTest` forbids from touching the repo at all. That boundary is
-  right — the web app is transport and the domain app owns the data — and its allowlist is
-  empty, which is worth keeping. So the web app calls a domain function, which is exactly
+  right — the web layer is transport and the domain owns the data — and its allowlist is
+  empty, which is worth keeping. So the web layer calls a domain function, which is exactly
   what the test's failure message prescribes.
   """
 

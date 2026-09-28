@@ -6,7 +6,7 @@ defmodule Pramana.Inventory do
   canon is not loaded yet"** — opposite answers that look identical from an empty result
   set.
 
-  This lives in the domain app, not in the MCP resource that serves it: `pramana_web` is
+  This lives in the domain layer, not in the MCP resource that serves it: `PramanaWeb` is
   a transport and must not build queries (`docs/CHECKS.md`, architecture review). Phase 8
   will want the same numbers for the reader, and a second implementation is how two
   surfaces start disagreeing about what the corpus contains.

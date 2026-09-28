@@ -89,7 +89,7 @@ defmodule Pramana.Report do
 
   @typedoc """
   Executes one replay record. Supplied by the caller because the tools it names live on the
-  MCP surface in `pramana_web`, and this application has no web dependency.
+  MCP surface in `PramanaWeb`; this domain module does not call web tools.
   """
   @type executor :: (String.t(), map() -> {:ok, map()} | {:error, term()})
 

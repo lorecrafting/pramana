@@ -4,7 +4,7 @@ defmodule Pramana.Publishing.Guard do
 
   Runs once at boot when `PRAMANA_PUBLIC=1`. A forbidden or unavailable audit
   **fails application startup synchronously**, before jobs, model construction and
-  the dependent web application. It does not schedule a later VM shutdown.
+  the web supervisor. It does not schedule a later VM shutdown.
 
   ## Why a boot check and not documentation
 

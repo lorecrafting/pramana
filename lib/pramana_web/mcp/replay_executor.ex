@@ -3,7 +3,7 @@ defmodule PramanaWeb.MCP.ReplayExecutor do
   Re-executes a `replay` record against the tools that produced it.
 
   `Pramana.Report` verifies a report but cannot run the tools it names: those live here, and
-  the domain application has no web dependency. So the executor is injected, and this is the
+  the domain report module does not call web tools. So the executor is injected, and this is the
   real one.
 
   ## Only tools that read, named explicitly
