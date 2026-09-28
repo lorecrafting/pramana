@@ -54,22 +54,24 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
-- **Refresh the Chinese pilot candidate.** A 2026-09-28 full CBETA verification found
+- **Review the refreshed Chinese pilot candidate.** A 2026-09-28 full CBETA verification found
   that local T0262 contained an eight-character stub despite its locked source XML.
   A targeted bake restored its 92,287-character body; full verification of all 4,263
   CBETA texts and 10,788,972 segments and corpus integrity over all 17,281 texts then
-  passed. The repaired bake had clean quotation, title, shared-text v3 and commentary
-  alignment receipts in the local candidate DB. Operator adjudication changes the
-  shared-text producer to v4, so that receipt must be regenerated before a readiness
-  claim. A new retrieval release was stamped there,
-  and its scope was materialized twice with identical content under
-  [#63](https://github.com/lorecrafting/pramana/issues/63);
-  the expanded works and rights still need review before any pilot-scope readiness claim.
-  The shared-text v3 receipt records 80 current proposals
-  plus 15 older links explicitly retained as `needs_review`; one current proposal is also
-  flagged. The v4 scope keeps three flagged links from included commentaries as separate
-  reader review cases without adding their targets to the answer path.
-  Source-link verdicts can follow; report pilot cases using flagged links separately.
+  passed. The local candidate on source bake
+  `1c385429ad3779b437d919defeab2c18ad3a0c2e9255a04c2de33139c8e3f85e` and selected
+  release `acd1e8625f3a881a8c0997ba20209a0a0528aca042b5f173c1f38e29723e6ab4`
+  now has clean, current quotation, title, shared-text v4 and commentary
+  alignment receipts. Shared-text receipt #10 records 80 current proposals plus 15
+  retained links: 95 outputs, with 16 still marked `needs_review`. Two new scope
+  materializations after the v4 receipt were byte-identical (file SHA-256
+  `2f6a82a1e287ec6bdf6e79f58a6e2606294cf7698f30731214b3f803e32482bd`, scope hash
+  `e6080b448240b73ecd983224ae432d470c60496674158f8d51fa2ad1b3ea9185`): 14 seeds,
+  40 answer-scope works, 26 admitted edges and three
+  separate flagged review cases. This is technical evidence under
+  [#63](https://github.com/lorecrafting/pramana/issues/63); the expanded works, source-link
+  verdicts and rights still need human review before any pilot-scope readiness claim.
+  Report cases using flagged links separately from accepted answer paths.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
   hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live
   probe over 499 search gold cases found that suppressing semantic-only weak matches would
