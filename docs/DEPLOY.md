@@ -155,8 +155,9 @@ extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` mem
 New tables after migrations require a reviewed grant update; do not solve a missing read
 privilege by granting ownership, ALL, sequence access or membership in an administrator.
 In particular, the public login must have **no SELECT** on `reviewer_grants` or
-`reviewer_judgments`. The `users` table is in this public database and cannot contain
-private reviewer identities. Revoke any older blanket grants when adding reviewer tables.
+`reviewer_judgments` or `reviewer_dispositions`. The `users` table is in this public
+database and cannot contain private reviewer identities. Revoke any older blanket grants
+when adding reviewer tables.
 Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
 `has_any_column_privilege`, `has_sequence_privilege`, `pg_has_role`) plus real denied-write
 checks in an isolated copy. `default_transaction_read_only` is not a substitute for grants:
@@ -236,15 +237,36 @@ the source context shows current-bake shared passages with their CBETA Taishō a
 exact character offsets and text hashes. Shared text alone does not prove which edition
 a commentary explains.
 A reviewer judgment remains separate from the relation and does not clear
-`needs_review`. The saved artifact's validation does not establish live scope
-currentness or rights acceptance;
+`needs_review`. A supported operator disposition invalidates that artifact for further
+reviewer submissions; rematerialize and review a new scope before granting access again.
+The saved artifact's validation does not establish live scope currentness or rights acceptance;
 [#63](https://github.com/lorecrafting/pramana/issues/63) remains the preflight gate.
 
+With separate operator credentials, inspect and decide a reviewed link using the same
+saved scope file:
+
+```sh
+mix pramana.reviews show --scope /path/to/accepted-scope.json --assertion-id ID
+mix pramana.reviews decide --scope /path/to/accepted-scope.json --assertion-id ID \
+  --fingerprint SHA256 --disposition supported --rationale TEXT \
+  --source-references TEXT --operator OPERATOR_ID
+```
+
+`disputed` and `unresolved` are also accepted dispositions; they retain `needs_review`.
+The CLI requires a current attributed judgment and records the original assertion,
+operator rationale and source references. A supported decision clears only that link's
+flag, makes the earlier relation derivation receipt stale, and blocks the old private
+review scope. Recheck the new scope and rights before treating the link as an accepted
+pilot path. A later change to that supported assertion's claim or evidence automatically
+restores `needs_review`; an unchanged reassertion retains the operator's decision.
+Regenerate the shared-text v4 receipt after adjudicating historical links, which remain
+explicitly counted as supported carryovers.
+
 Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
-on only the needed corpus, users, users_tokens, grant and judgment tables, INSERT only on
+on only the needed corpus, users, users_tokens, grant, judgment and disposition tables, INSERT only on
 `reviewer_judgments` and `users_tokens`, DELETE only on `users_tokens`, and UPDATE only
 on the `users` columns needed for confirmation/settings: `email`, `hashed_password`,
-`confirmed_at`, `updated_at`. Give it no UPDATE or DELETE on judgments, no corpus or
+`confirmed_at`, `updated_at`. Give it no INSERT, UPDATE or DELETE on dispositions, no UPDATE or DELETE on judgments, no corpus or
 grant DML, user INSERT/DELETE, sequence, schema-create, role-switch or Oban privilege. Keep the operator
 credential out of the HTTP environment. Independently inspect the actual role's
 effective privileges before deployment; the container smoke test proves this boundary

@@ -77,6 +77,7 @@ defmodule Pramana.CI.ServingPrivileges do
           "SELECT * FROM oban_jobs LIMIT 0",
           "UPDATE reviewer_judgments SET rationale = rationale WHERE false",
           "DELETE FROM reviewer_judgments WHERE false",
+          "INSERT INTO reviewer_dispositions (id) SELECT NULL::uuid WHERE false",
           "DELETE FROM users WHERE false",
           "UPDATE users_tokens SET token = token WHERE false",
           "INSERT INTO reviewer_grants (id) SELECT NULL::uuid WHERE false",
@@ -100,7 +101,7 @@ defmodule Pramana.CI.ServingPrivileges do
     end
 
     if expected_role == "smoke_reader" do
-      for table <- ["reviewer_grants", "reviewer_judgments"] do
+      for table <- ["reviewer_grants", "reviewer_judgments", "reviewer_dispositions"] do
         denied = Ecto.Adapters.SQL.query(Repo, "SELECT * FROM #{table} LIMIT 0", [])
 
         expect!(
@@ -112,7 +113,8 @@ defmodule Pramana.CI.ServingPrivileges do
       expect!(
         query!("SELECT count(*) FROM users") == [[0]] and
           query!("SELECT count(*) FROM reviewer_grants") == [[0]] and
-          query!("SELECT count(*) FROM reviewer_judgments") == [[0]],
+          query!("SELECT count(*) FROM reviewer_judgments") == [[0]] and
+          query!("SELECT count(*) FROM reviewer_dispositions") == [[0]],
         "private reviewer cannot read review identity/evidence records"
       )
 

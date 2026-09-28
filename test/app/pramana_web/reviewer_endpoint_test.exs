@@ -92,6 +92,7 @@ defmodule PramanaWeb.ReviewerEndpointTest do
 
     confirmed = AccountsFixtures.user_fixture() |> AccountsFixtures.set_password()
     assert {:ok, _} = ReviewerAccess.grant_scope(confirmed.email, @scope, "operator-1")
+    unless Process.whereis(PramanaWeb.Endpoint), do: start_supervised!(PramanaWeb.Endpoint)
     public_page = PramanaWeb.Endpoint.call(Plug.Test.conn(:get, "/users/log-in"), [])
 
     public_session =

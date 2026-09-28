@@ -37,13 +37,14 @@ reconcile it with current code before dispatching work from it.
   [preflight](strategy/PILOT_PREFLIGHT.md). G1 and the relevant Pramāṇa conditions
   govern implementation; the retired Foundry G0 gate no longer blocks it.
 - **Provision the first private source reviewer [#74](https://github.com/lorecrafting/pramana/issues/74).**
-  The account, grant, revocation and isolated runtime code merged in
-  [PR #77](https://github.com/lorecrafting/pramana/pull/77) with independent review and
-  green app, docs and container CI. The owner still needs to identify the individual
-  behind the “silent principal” display name; an operator must provision their login and
-  exact accepted scope grant in a restricted deployment. The private submission path is
-  implemented under [#75](https://github.com/lorecrafting/pramana/issues/75), but no real
-  account or judgment exists yet.
+  The isolated runtime and grants merged in [PR #77](https://github.com/lorecrafting/pramana/pull/77);
+  Phoenix account confirmation and sessions merged in
+  [PR #81](https://github.com/lorecrafting/pramana/pull/81). The owner still needs to identify
+  the individual behind the “silent principal” display name; an operator must provision
+  their login and exact accepted scope grant in a restricted deployment. Production mail
+  remains unconfigured, so confirmation needs an existing or free delivery route. The
+  private submission path is implemented under [#75](https://github.com/lorecrafting/pramana/issues/75),
+  but no real account or judgment exists yet.
 - **[Select the Chinese pilot inference route](https://github.com/lorecrafting/pramana/issues/65).** Compare a capable external route and a
   local route on the same frozen source-bound reading sample, terminology and qualified
   evaluator rubric; record fidelity by text role, latency, cost and exact processing
@@ -53,16 +54,14 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
-- **Operator adjudication [#76](https://github.com/lorecrafting/pramana/issues/76).**
-  Give the operator a CLI path to inspect attributed judgments and record a source-backed
-  disposition. Any relation change must invalidate or recompute affected derivation and
-  pilot-scope evidence; unresolved links stay visibly flagged.
 - **Refresh the Chinese pilot candidate.** A 2026-09-28 full CBETA verification found
   that local T0262 contained an eight-character stub despite its locked source XML.
   A targeted bake restored its 92,287-character body; full verification of all 4,263
   CBETA texts and 10,788,972 segments and corpus integrity over all 17,281 texts then
-  passed. The repaired bake now has clean quotation, title, shared-text and commentary
-  alignment receipts in the local candidate DB. A new retrieval release was stamped there,
+  passed. The repaired bake had clean quotation, title, shared-text v3 and commentary
+  alignment receipts in the local candidate DB. Operator adjudication changes the
+  shared-text producer to v4, so that receipt must be regenerated before a readiness
+  claim. A new retrieval release was stamped there,
   and its scope was materialized twice with identical content under
   [#63](https://github.com/lorecrafting/pramana/issues/63);
   the expanded works and rights still need review before any pilot-scope readiness claim.
