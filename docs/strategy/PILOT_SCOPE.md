@@ -203,5 +203,6 @@ JSON is not enough.
 
 ## Current preflight state
 
-**Blocked.** This PR builds the measuring instrument. It does not have a reviewed accepted
-live-corpus artifact merely because the source code can query one.
+**Blocked.** The materializer and validator are implemented, but the repaired candidate
+has no accepted release or reviewed live-corpus artifact. A queryable database does not
+establish the required derivation receipts or stable scope evidence.
