@@ -43,6 +43,9 @@
         <li>
           {@current_scope.user.email}
         </li>
+        <li :if={assigns[:local_reviewer]}>
+          <.link href="/reviews">Reviews</.link>
+        </li>
         <li>
           <.link href="/users/settings">Settings</.link>
         </li>

@@ -195,7 +195,8 @@ In development, the reader at `http://localhost:4000` also serves `/reviews` and
 `/reviews/:id`. Search, work pages and MCP remain open to visitors without an account.
 Reviewers sign up at `/users/register` and use the same account session on both surfaces.
 The existing, live `reviewer_grants` record is the reviewer permission; a signed-in
-account without an active grant gets 403. Only an operator can grant the exact scope.
+account without an active grant gets 403. A Reviews link appears after a grant is active.
+Only an operator can grant the exact scope.
 Use the same local database and the saved scope artifact:
 
 ```sh
@@ -205,7 +206,8 @@ PRAMANA_REVIEW_SCOPE_PATH=/absolute/path/to/scope.json PHX_SERVER=true PORT=4000
 Sign in at `/users/log-in`; development mail appears at `/dev/mailbox`. Confirm the
 individual account before the operator runs the `pramana.reviewer grant` command below.
 Revocation is checked on the next `/reviews` request. This development route does not
-change the separate production reviewer deployment or clear any pilot acceptance gate.
+run under `PRAMANA_PUBLIC=1`, change the separate production reviewer deployment,
+or clear any pilot acceptance gate.
 
 ## Private source-review runtime
 

@@ -54,6 +54,7 @@ defmodule PramanaWeb.ReviewerRouter do
     pipe_through [:browser, :reviewer]
 
     get "/", ReviewerController, :index
+    get "/reviews", ReviewerController, :index
     get "/reviews/:id", ReviewerJudgmentController, :show
     post "/reviews/:id", ReviewerJudgmentController, :create
   end

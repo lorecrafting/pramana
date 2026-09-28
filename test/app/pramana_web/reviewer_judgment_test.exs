@@ -66,6 +66,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     relation = context.relation
     home = get("/", login)
     assert home.status == 200
+    assert get("/reviews", login).status == 200
     assert home.resp_body =~ "/reviews/#{relation.id}"
 
     page = get("/reviews/#{relation.id}", login)
@@ -112,6 +113,13 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
            |> Endpoint.call([])
            |> Map.get(:status) == 403
 
+    ungranted_reader =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Test.init_test_session(%{user_token: ungranted_token})
+      |> Endpoint.call([])
+
+    refute ungranted_reader.resp_body =~ ~s(href="/reviews")
+
     token = Accounts.generate_user_session_token(context.account)
 
     session =
@@ -128,6 +136,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
       |> Endpoint.call([])
 
     assert reader.status == 200
+    assert reader.resp_body =~ ~s(href="/reviews")
 
     page =
       Plug.Test.conn(:get, "/reviews/#{context.relation.id}")
@@ -163,6 +172,34 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
       |> Endpoint.call([])
 
     assert denied.status == 403
+  end
+
+  test "public-data mode keeps local review routes and grants out of the reader", context do
+    previous = System.get_env("PRAMANA_PUBLIC")
+    System.put_env("PRAMANA_PUBLIC", "1")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("PRAMANA_PUBLIC", previous),
+        else: System.delete_env("PRAMANA_PUBLIC")
+    end)
+
+    token = Accounts.generate_user_session_token(context.account)
+
+    reader =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Test.init_test_session(%{user_token: token})
+      |> Endpoint.call([])
+
+    assert reader.status == 200
+    refute reader.resp_body =~ ~s(href="/reviews")
+
+    route =
+      Plug.Test.conn(:get, "/reviews")
+      |> Plug.Test.init_test_session(%{user_token: token})
+      |> Endpoint.call([])
+
+    assert route.status == 404
   end
 
   test "the restricted reviewer database role can submit without corpus write grants", context do
