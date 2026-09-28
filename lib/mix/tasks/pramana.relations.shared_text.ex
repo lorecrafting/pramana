@@ -82,7 +82,7 @@ defmodule Mix.Tasks.Pramana.Relations.SharedText do
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
     min_passages = Keyword.get(opts, :min_passages, 1)
     bake_id = Bake.current_id()
-    receipt = begin_receipt(opts[:write], bake_id, min_passages)
+    receipt = begin_receipt(opts[:write] == true, bake_id, min_passages)
 
     candidates = Roots.candidates(min_passages: min_passages, bake_id: bake_id)
     assertable = Roots.assertable(candidates)
