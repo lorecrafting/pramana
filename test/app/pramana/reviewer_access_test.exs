@@ -46,4 +46,11 @@ defmodule Pramana.ReviewerAccessTest do
     assert :error = ReviewerAccess.authenticate("reviewer.two", next_credential)
     assert :error = ReviewerAccess.session_account(account.id, 2)
   end
+
+  test "failed first grant leaves no account behind" do
+    assert {:error, %Ecto.Changeset{}} =
+             ReviewerAccess.provision("reviewer.rollback", "Reviewer", @scope, " ")
+
+    refute Repo.get_by(Account, login_id: "reviewer.rollback")
+  end
 end
