@@ -17,6 +17,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   alias Pramana.Reviewer.Judgment
   alias Pramana.ReviewerAccess
   alias Pramana.ReviewerScopeFixture
+  alias PramanaWeb.Endpoint
   alias PramanaWeb.ReviewerEndpoint
 
   setup do
@@ -65,6 +66,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     relation = context.relation
     home = get("/", login)
     assert home.status == 200
+    assert get("/reviews", login).status == 200
     assert home.resp_body =~ "/reviews/#{relation.id}"
 
     page = get("/reviews/#{relation.id}", login)
@@ -96,6 +98,108 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert after_submit.status == 200
     assert after_submit.resp_body =~ "Your previous judgments"
     assert after_submit.resp_body =~ judgment.rationale
+  end
+
+  test "a local reader session reaches review only while its exact grant is active", context do
+    unless Process.whereis(Endpoint), do: start_supervised!(Endpoint)
+    assert Endpoint.call(Plug.Test.conn(:get, "/?q=佛"), []).status == 200
+    assert Endpoint.call(Plug.Test.conn(:get, "/reviews"), []).status == 302
+
+    ungranted = AccountsFixtures.user_fixture()
+    ungranted_token = Accounts.generate_user_session_token(ungranted)
+
+    assert Plug.Test.conn(:get, "/reviews")
+           |> Plug.Test.init_test_session(%{user_token: ungranted_token})
+           |> Endpoint.call([])
+           |> Map.get(:status) == 403
+
+    ungranted_reader =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Test.init_test_session(%{user_token: ungranted_token})
+      |> Endpoint.call([])
+
+    refute ungranted_reader.resp_body =~ ~s(href="/reviews")
+
+    token = Accounts.generate_user_session_token(context.account)
+
+    session =
+      Plug.Test.conn(:get, "/reviews")
+      |> Plug.Test.init_test_session(%{user_token: token})
+      |> Endpoint.call([])
+
+    assert session.status == 200
+    assert session.resp_body =~ "/reviews/#{context.relation.id}"
+
+    reader =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Test.recycle_cookies(session)
+      |> Endpoint.call([])
+
+    assert reader.status == 200
+    assert reader.resp_body =~ ~s(href="/reviews")
+
+    page =
+      Plug.Test.conn(:get, "/reviews/#{context.relation.id}")
+      |> Plug.Test.recycle_cookies(session)
+      |> Endpoint.call([])
+
+    assert page.status == 200
+    assert page.resp_body =~ ~s(href="/reviews")
+
+    attrs = submission(page) |> Map.put("_csrf_token", field(page.resp_body, "_csrf_token"))
+
+    posted =
+      Plug.Test.conn(:post, "/reviews/#{context.relation.id}", URI.encode_query(attrs))
+      |> Plug.Conn.put_req_header("content-type", "application/x-www-form-urlencoded")
+      |> Plug.Test.recycle_cookies(page)
+      |> Endpoint.call([])
+
+    assert posted.status == 302
+
+    assert Repo.get_by!(Judgment, account_id: context.account.id).assertion_id ==
+             context.relation.id
+
+    assert :ok =
+             ReviewerAccess.revoke_scope(
+               context.account.email,
+               context.artifact["scope_content_sha256"],
+               "operator-1"
+             )
+
+    denied =
+      Plug.Test.conn(:get, "/reviews")
+      |> Plug.Test.recycle_cookies(session)
+      |> Endpoint.call([])
+
+    assert denied.status == 403
+  end
+
+  test "public-data mode keeps local review routes and grants out of the reader", context do
+    previous = System.get_env("PRAMANA_PUBLIC")
+    System.put_env("PRAMANA_PUBLIC", "1")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("PRAMANA_PUBLIC", previous),
+        else: System.delete_env("PRAMANA_PUBLIC")
+    end)
+
+    token = Accounts.generate_user_session_token(context.account)
+
+    reader =
+      Plug.Test.conn(:get, "/")
+      |> Plug.Test.init_test_session(%{user_token: token})
+      |> Endpoint.call([])
+
+    assert reader.status == 200
+    refute reader.resp_body =~ ~s(href="/reviews")
+
+    route =
+      Plug.Test.conn(:get, "/reviews")
+      |> Plug.Test.init_test_session(%{user_token: token})
+      |> Endpoint.call([])
+
+    assert route.status == 404
   end
 
   test "the restricted reviewer database role can submit without corpus write grants", context do

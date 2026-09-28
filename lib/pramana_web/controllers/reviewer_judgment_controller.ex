@@ -81,7 +81,7 @@ defmodule PramanaWeb.ReviewerJudgmentController do
 
     """
     <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Review commentary link</title></head>
-    <body><main><p><a href="/">← Review cases</a></p><h1>Review commentary link</h1>
+    <body><main><p><a href="/reviews">← Review cases</a></p><h1>Review commentary link</h1>
     <p><strong>Needs review:</strong> #{escape(assertion["review_reason"])}</p>
     <p>#{work_label(review_case.source)} explains #{work_label(review_case.target)}
     via <code>#{escape(row.relation)}</code>. This is a candidate link, not an accepted edition claim.</p>
