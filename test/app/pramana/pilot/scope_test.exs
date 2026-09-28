@@ -191,6 +191,31 @@ defmodule Pramana.Pilot.ScopeTest do
              edge["assertions"]
   end
 
+  test "a flagged link from an in-scope commentary is a review case without expanding answer scope" do
+    {:ok, artifact} = Scope.build(input_fixture())
+
+    assert [case_row] = artifact["review_cases"]
+    assert case_row["source_work_id"] == "T1800"
+    assert case_row["target_work_id"] == "T0400"
+    assert case_row["target_title"] == "alternative root"
+    assert case_row["assertion"]["review_status"] == "needs_review"
+    assert case_row["assertion"]["review_reason"] == "Edition identity is disputed"
+    assert artifact["denominators"]["review_experience_case_count"] == 1
+
+    refute Enum.any?(artifact["works"], &(&1["work_id"] == "T0400"))
+    refute Enum.any?(artifact["relations"], &(&1["target_work_id"] == "T0400"))
+  end
+
+  test "pilot scope refuses a candidate with no visible review case" do
+    input = input_fixture()
+    rows = Enum.reject(input.relation_rows, &(&1.target_work_id == "T0400"))
+
+    assert {:error, {:invalid_artifact, errors}} =
+             Scope.build(%{input | relation_rows: rows})
+
+    assert "pilot scope must expose at least one needs-review case" in errors
+  end
+
   test "unrelated work, relation and alignment rows do not perturb the scope hash" do
     input = input_fixture()
     {:ok, baseline} = Scope.build(input)
@@ -247,6 +272,7 @@ defmodule Pramana.Pilot.ScopeTest do
 
     expansions = [
       work("T1800", "commentary", "first commentary", 600, "經疏部"),
+      work("T0400", "root", "alternative root", 100, "經集部"),
       work("T1830", "subcommentary", "subcommentary", 700, "論疏部"),
       work("T1900", "subcommentary", "third hop", 800, "論疏部"),
       work("T1801", "commentary", "model-only", 610, "經疏部")
@@ -265,6 +291,11 @@ defmodule Pramana.Pilot.ScopeTest do
 
     relation_rows = [
       relation("T1800", "T0200", "comments_on", "title_match", "certain"),
+      %{
+        relation("T1800", "T0400", "comments_on", "shared_text", "uncertain")
+        | review_status: "needs_review",
+          review_reason: "Edition identity is disputed"
+      },
       relation("T1830", "T1800", "subcommentary_of", "manifest", "certain"),
       relation("T1900", "T1830", "subcommentary_of", "manifest", "certain"),
       relation("T1801", "T0200", "comments_on", "llm", "uncertain"),

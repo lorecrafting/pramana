@@ -55,6 +55,9 @@ Before execution, the exact scope must be materialized from the live pilot relea
 recorded: seed work IDs, allowed relation edge types, maximum traversal depth, every
 expanded work ID, passage-alignment coverage, release identity and scope denominator.
 The rights review applies to the **entire expanded scope**, not merely the 14 seeds.
+Flagged links from included works to outside roots are recorded as separate reader review
+cases; their targets also need display-rights review, and the cases cannot supply answer
+synthesis without an admitted scope relation.
 The historical phrase "top ten by directed citation weight" is not an immutable list.
 
 The reviewed materialization procedure is specified in [PILOT_SCOPE](PILOT_SCOPE.md).

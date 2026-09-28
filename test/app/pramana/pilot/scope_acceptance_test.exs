@@ -17,6 +17,7 @@ defmodule Pramana.Pilot.ScopeAcceptanceTest do
   alias Pramana.Corpus.Text
   alias Pramana.Corpus.Witness
   alias Pramana.Corpus.Work
+  alias Pramana.Corpus.WorkRelation
   alias Pramana.Pilot.Scope
   alias Pramana.Pilot.ScopeArtifact
   alias Pramana.Release
@@ -92,6 +93,10 @@ defmodule Pramana.Pilot.ScopeAcceptanceTest do
     assert artifact["release"]["source_bake_id"] == release.source_bake_id
     assert artifact["denominators"]["demand_seed_count"] == 10
     assert artifact["denominators"]["combined_seed_count"] == 14
+    assert artifact["denominators"]["review_experience_case_count"] == 1
+
+    assert [%{"source_work_id" => "T1700", "target_work_id" => "T0400"}] =
+             artifact["review_cases"]
 
     release_id = release.release_id
 
@@ -181,6 +186,26 @@ defmodule Pramana.Pilot.ScopeAcceptanceTest do
         meta: %{}
       })
     end)
+
+    seed_text!("T0400", "root", "alternative root", "經集部", 100)
+
+    Repo.insert!(%WorkRelation{
+      source_work_id: "T1700",
+      target_work_id: "T0200",
+      relation: "comments_on",
+      method: "title_match",
+      confidence: "certain"
+    })
+
+    Repo.insert!(%WorkRelation{
+      source_work_id: "T1700",
+      target_work_id: "T0400",
+      relation: "comments_on",
+      method: "shared_text",
+      confidence: "uncertain",
+      review_status: "needs_review",
+      review_reason: "Edition identity is disputed"
+    })
   end
 
   defp seed_text!(work_id, role, title, division, date_start) do

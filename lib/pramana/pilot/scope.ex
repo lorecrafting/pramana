@@ -119,13 +119,15 @@ defmodule Pramana.Pilot.Scope do
     seeds = seeds(ranking["top_demand"], work_map)
     {scope, admitted_relations} = expand(seeds, raw_relation_rows, work_map)
     considered_relations = considered_relation_rows(raw_relation_rows, scope)
+    review_rows = review_rows(raw_relation_rows, scope, admitted_relations, work_map)
     traversal_stats = relation_exclusion_stats(considered_relations, work_map)
 
     relevant_works =
-      relevant_work_metadata(works, ranking_detail, considered_relations, scope)
+      relevant_work_metadata(works, ranking_detail, considered_relations ++ review_rows, scope)
 
     scope_works = present_works(scope, work_map)
     relations = present_relations(admitted_relations)
+    review_cases = present_review_cases(review_rows, work_map)
 
     context = %{
       release: release,
@@ -133,10 +135,12 @@ defmodule Pramana.Pilot.Scope do
       seeds: seeds,
       scope_works: scope_works,
       relations: relations,
+      review_cases: review_cases,
       traversal_stats: traversal_stats,
       relevant_works: relevant_works,
       ranking_detail: ranking_detail,
-      considered_relations: considered_relations
+      considered_relations: considered_relations,
+      review_rows: review_rows
     }
 
     with :ok <- ensure_unambiguous_relation_pairs(relations) do
@@ -150,17 +154,12 @@ defmodule Pramana.Pilot.Scope do
 
     artifact =
       payload(
-        context.release,
-        context.ranking,
-        context.seeds,
-        context.scope_works,
-        context.relations,
+        context,
         alignments,
-        context.traversal_stats,
         %{
           works: context.relevant_works,
           ranking: context.ranking_detail,
-          relations: context.considered_relations,
+          relations: Enum.uniq(context.considered_relations ++ context.review_rows),
           alignments: relevant_alignment_rows
         }
       )
@@ -775,24 +774,42 @@ defmodule Pramana.Pilot.Scope do
         "relation" => row.relation,
         "hop" => row.hop,
         "seed_ids" => Enum.sort(row.seed_ids),
-        "assertions" =>
-          Enum.map(row.assertions, fn assertion ->
-            %{
-              "method" => assertion.method,
-              "confidence" => assertion.confidence,
-              "scope" => assertion.scope,
-              "target_urn" => assertion.target_urn,
-              "evidence" => assertion.evidence || %{},
-              "evidence_sha256" => ScopeArtifact.digest(assertion.evidence || %{}),
-              "review_status" => assertion.review_status || "unflagged",
-              "review_reason" => assertion.review_reason
-            }
-          end)
+        "assertions" => Enum.map(row.assertions, &present_assertion/1)
       }
     end)
     |> Enum.sort_by(fn row ->
       {row["hop"], row["target_work_id"], row["source_work_id"], row["relation"]}
     end)
+  end
+
+  defp present_review_cases(rows, work_map) do
+    Enum.map(rows, fn row ->
+      target = Map.fetch!(work_map, row.target_work_id)
+
+      %{
+        "source_work_id" => row.source_work_id,
+        "target_work_id" => row.target_work_id,
+        "target_title" => target.title,
+        "target_text_role" => target.text_role,
+        "target_source" => "cbeta",
+        "target_witness" => "T",
+        "relation" => row.relation,
+        "assertion" => present_assertion(row)
+      }
+    end)
+  end
+
+  defp present_assertion(row) do
+    %{
+      "method" => row.method,
+      "confidence" => row.confidence,
+      "scope" => row.scope,
+      "target_urn" => row.target_urn,
+      "evidence" => row.evidence || %{},
+      "evidence_sha256" => ScopeArtifact.digest(row.evidence || %{}),
+      "review_status" => row.review_status || "unflagged",
+      "review_reason" => row.review_reason
+    }
   end
 
   defp alignment_coverage(relations, alignment_rows) do
@@ -870,6 +887,30 @@ defmodule Pramana.Pilot.Scope do
     end)
   end
 
+  # Supplemental reader cases from works already in the demand scope. They do not
+  # create an exegetical path or add their targets to answer scope.
+  defp review_rows(relation_rows, scope, admitted_relations, work_map) do
+    admitted_pairs =
+      admitted_relations
+      |> Enum.map(&{&1.source_work_id, &1.target_work_id, &1.relation})
+      |> MapSet.new()
+
+    relation_rows
+    |> Enum.filter(fn row ->
+      row.review_status == "needs_review" and
+        Map.has_key?(scope, row.source_work_id) and
+        row.method in ScopeArtifact.allowed_relation_methods() and
+        relation_role_compatible?(row, work_map) and
+        not MapSet.member?(
+          admitted_pairs,
+          {row.source_work_id, row.target_work_id, row.relation}
+        )
+    end)
+    |> Enum.sort_by(fn row ->
+      {row.source_work_id, row.target_work_id, row.relation, assertion_key(row)}
+    end)
+  end
+
   defp relation_exclusion_stats(rows, work_map) do
     allowed_methods = ScopeArtifact.allowed_relation_methods()
 
@@ -889,18 +930,9 @@ defmodule Pramana.Pilot.Scope do
     }
   end
 
-  defp payload(
-         release,
-         ranking,
-         seeds,
-         works,
-         relations,
-         alignments,
-         traversal_stats,
-         inputs
-       ) do
+  defp payload(context, alignments, inputs) do
     %{
-      "release" => stringify_release(release),
+      "release" => stringify_release(context.release),
       "selection" => %{
         "demand_seed_count" => ScopeArtifact.demand_seed_count(),
         "quotation_min_length" => ScopeArtifact.quotation_min_length(),
@@ -911,12 +943,21 @@ defmodule Pramana.Pilot.Scope do
         "relation_methods" => ScopeArtifact.allowed_relation_methods(),
         "max_relation_depth" => ScopeArtifact.max_relation_depth()
       },
-      "ranking" => ranking,
-      "seeds" => seeds,
-      "works" => works,
-      "relations" => relations,
+      "ranking" => context.ranking,
+      "seeds" => context.seeds,
+      "works" => context.scope_works,
+      "relations" => context.relations,
+      "review_cases" => context.review_cases,
       "alignment_coverage" => alignments,
-      "denominators" => denominators(seeds, works, relations, alignments, traversal_stats),
+      "denominators" =>
+        denominators(
+          context.seeds,
+          context.scope_works,
+          context.relations,
+          context.review_cases,
+          alignments,
+          context.traversal_stats
+        ),
       "derivation_status" => %{
         "quotation_graph_completeness" => "requires_separate_receipt_verification",
         "relation_graph_completeness" => "requires_separate_receipt_verification",
@@ -946,7 +987,7 @@ defmodule Pramana.Pilot.Scope do
 
   defp fetch(map, key), do: Map.get(map, key) || Map.get(map, Atom.to_string(key))
 
-  defp denominators(seeds, works, relations, alignments, traversal_stats) do
+  defp denominators(seeds, works, relations, review_cases, alignments, traversal_stats) do
     %{
       "combined_seed_count" => length(seeds),
       "demand_seed_count" => ScopeArtifact.demand_seed_count(),
@@ -960,6 +1001,7 @@ defmodule Pramana.Pilot.Scope do
         relations
         |> Enum.flat_map(& &1["assertions"])
         |> Enum.count(&(&1["review_status"] == "needs_review")),
+      "review_experience_case_count" => length(review_cases),
       "relation_edges_with_alignment" => Enum.count(alignments, & &1["has_passage_alignment"]),
       "alignment_rows" => alignments |> Enum.map(& &1["alignment_rows"]) |> Enum.sum(),
       "works_by_text_role" =>

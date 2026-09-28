@@ -9,7 +9,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   that boundary.
   """
 
-  @schema "pramana-pilot-scope/v3"
+  @schema "pramana-pilot-scope/v4"
   @pilot_id "chinese-commentary-v1"
   @agama_ids ~w(T0001 T0026 T0099 T0125)
   @relations ~w(comments_on subcommentary_of)
@@ -29,6 +29,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
     seeds
     works
     relations
+    review_cases
     alignment_coverage
     denominators
     derivation_status
@@ -98,7 +99,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
   end
 
   @doc """
-  Validates the saved artifact's closed v3 shape and arithmetic.
+  Validates the saved artifact's closed v4 shape and arithmetic.
 
   Live release/current-corpus verification is deliberately absent here. A structurally
   valid historical artifact is still historical evidence rather than proof of current
@@ -116,6 +117,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
       |> check_seeds(artifact["seeds"], artifact["ranking"])
       |> check_works(artifact["works"], artifact["seeds"])
       |> check_relations(artifact["relations"], artifact["works"], artifact["seeds"])
+      |> check_review_cases(artifact["review_cases"], artifact["works"], artifact["relations"])
       |> check_alignments(artifact["alignment_coverage"], artifact["relations"])
       |> check_denominators(artifact)
       |> check_derivation_status(artifact["derivation_status"])
@@ -507,6 +509,75 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
   defp valid_review_state?(_), do: false
 
+  defp check_review_cases(errors, cases, works, relations)
+       when is_list(cases) and is_list(works) and is_list(relations) do
+    if Enum.all?(cases, &is_map/1) do
+      work_ids = MapSet.new(Enum.map(works, & &1["work_id"]))
+      admitted_pairs = MapSet.new(Enum.map(relations, &relation_identity/1))
+      keys = Enum.map(cases, &review_case_key/1)
+
+      errors =
+        errors
+        |> add_if(keys != Enum.sort(keys), "review_cases must use canonical sort order")
+        |> add_if(length(keys) != length(Enum.uniq(keys)), "review_cases must be unique")
+
+      Enum.reduce(cases, errors, &check_review_case(&1, &2, work_ids, admitted_pairs))
+    else
+      ["review_cases must contain objects" | errors]
+    end
+  end
+
+  defp check_review_cases(errors, _cases, _works, _relations),
+    do: ["review_cases must be an array" | errors]
+
+  defp check_review_case(row, errors, work_ids, admitted_pairs) do
+    errors
+    |> add_if(
+      not MapSet.member?(work_ids, row["source_work_id"]),
+      "review case source must be an in-scope work"
+    )
+    |> add_if(not valid_review_target?(row), "review case target work is invalid")
+    |> add_if(
+      not nonempty?(row["target_title"]) or not nonempty?(row["target_text_role"]),
+      "review case target metadata is incomplete"
+    )
+    |> add_if(
+      row["target_source"] != "cbeta" or row["target_witness"] != "T",
+      "review case target must be CBETA Taishō"
+    )
+    |> add_if(row["relation"] not in @relations, "review case relation is disallowed")
+    |> add_if(
+      MapSet.member?(admitted_pairs, relation_identity(row)),
+      "review case duplicates an admitted relation"
+    )
+    |> add_if(
+      not valid_review_assertion?(row["assertion"]),
+      "review case must carry an allowed needs-review assertion"
+    )
+    |> add_if(
+      not valid_review_evidence?(row["assertion"]),
+      "review case assertion evidence digest is invalid"
+    )
+  end
+
+  defp valid_review_target?(row),
+    do: nonempty?(row["target_work_id"]) and row["target_work_id"] != row["source_work_id"]
+
+  defp valid_review_assertion?(assertion) when is_map(assertion),
+    do:
+      assertion["method"] in @relation_methods and
+        assertion["review_status"] == "needs_review" and valid_review_state?(assertion)
+
+  defp valid_review_assertion?(_), do: false
+
+  defp valid_review_evidence?(assertion) when is_map(assertion) do
+    is_map(assertion["evidence"]) and
+      sha256?(assertion["evidence_sha256"]) and
+      assertion["evidence_sha256"] == digest(assertion["evidence"])
+  end
+
+  defp valid_review_evidence?(_), do: false
+
   defp relation_ancestry_matches_target?(relation, works_by_id) do
     case Map.get(works_by_id, relation["target_work_id"]) do
       nil -> false
@@ -558,6 +629,7 @@ defmodule Pramana.Pilot.ScopeArtifact do
       seeds = artifact["seeds"] || []
       works = artifact["works"] || []
       relations = artifact["relations"] || []
+      review_cases = List.wrap(artifact["review_cases"])
       alignments = artifact["alignment_coverage"] || []
 
       role_counts =
@@ -604,9 +676,22 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "alignment_rows denominator is wrong"
       )
       |> add_if(d["works_by_text_role"] != role_counts, "works_by_text_role is wrong")
+      |> check_review_denominators(d, review_cases)
     else
       ["denominators must be an object" | errors]
     end
+  end
+
+  defp check_review_denominators(errors, denominators, review_cases) do
+    errors
+    |> add_if(
+      denominators["review_experience_case_count"] != length(review_cases),
+      "review_experience_case_count is wrong"
+    )
+    |> add_if(
+      denominators["needs_review_relation_assertion_count"] == 0 and review_cases == [],
+      "pilot scope must expose at least one needs-review case"
+    )
   end
 
   defp check_derivation_status(errors, status) when is_map(status) do
@@ -713,6 +798,13 @@ defmodule Pramana.Pilot.ScopeArtifact do
 
   defp relation_key(row),
     do: {row["hop"], row["target_work_id"], row["source_work_id"], row["relation"]}
+
+  defp review_case_key(row) do
+    assertion = if is_map(row["assertion"]), do: row["assertion"], else: %{}
+
+    {row["source_work_id"], row["target_work_id"], row["relation"],
+     assertion_artifact_key(assertion)}
+  end
 
   defp relation_identity(row),
     do: {row["source_work_id"], row["target_work_id"], row["relation"]}
