@@ -59,6 +59,15 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     Repo.insert!(%Selection{id: 1, release_id: release.id, selected_at: DateTime.utc_now()})
     relation = seed_case!(artifact)
 
+    for work <- artifact["works"], work["work_id"] not in ~w(T1800 T0400) do
+      Repo.insert!(%Work{
+        id: work["work_id"],
+        title: work["title"],
+        text_role: work["text_role"],
+        division: work["division"]
+      })
+    end
+
     account = AccountsFixtures.user_fixture()
 
     {:ok, _} =
@@ -425,6 +434,10 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert judgment.account_id == context.account.id
     assert judgment.work_id == "T1800"
     assert judgment.judgment == "needs_review"
+
+    assert judgment.work_snapshot["work_metadata"]["attributed_author"] ==
+             "Synthetic reviewer fixture"
+
     assert get("/reviews/works/T1800", login).resp_body =~ judgment.rationale
 
     assert :ok =
@@ -441,6 +454,56 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
              WorkReviews.submit(context.account, context.artifact, "T1800", attrs)
 
     assert Repo.aggregate(WorkJudgment, :count) == 1
+  end
+
+  test "an edited source-work division invalidates an old form", context do
+    login = login(context.account)
+    page = get("/reviews/works/T1800", login)
+
+    attrs = %{
+      "scope_sha256" => field(page.resp_body, "scope_sha256", "work_review"),
+      "release_id" => field(page.resp_body, "release_id", "work_review"),
+      "work_fingerprint" => field(page.resp_body, "work_fingerprint", "work_review"),
+      "judgment" => "needs_review",
+      "rationale" => "The changed catalogue classification needs rechecking.",
+      "source_references" => "CBETA T1800 catalogue entry"
+    }
+
+    Repo.get!(Work, "T1800")
+    |> Ecto.Changeset.change(division: "新分類")
+    |> Repo.update!()
+
+    assert post_form("/reviews/works/T1800", login, page, "work_review", attrs).status == 409
+    assert Repo.aggregate(WorkJudgment, :count) == 0
+  end
+
+  test "a rights-only signer lands on the rights workspace", context do
+    signer = AccountsFixtures.user_fixture() |> AccountsFixtures.set_password()
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        signer.email,
+        context.artifact["scope_content_sha256"],
+        "operator-1",
+        "rights_signoff"
+      )
+
+    login_page = get("/users/log-in", nil)
+
+    session =
+      post_form("/users/log-in", login_page, login_page, "user", %{
+        "email" => signer.email,
+        "password" => AccountsFixtures.valid_user_password()
+      })
+
+    assert session.status == 302
+    assert {"location", "/reviews/rights"} in session.resp_headers
+    assert get("/", session).status == 403
+
+    index = get("/reviews/rights", session)
+    assert index.status == 200
+    assert index.resp_body =~ ~s(href="/reviews/rights")
+    refute index.resp_body =~ ~s(href="/reviews")
   end
 
   test "rights decisions require their own grant and preserve exact use evidence", context do
@@ -570,6 +633,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
       id: "T1800",
       title: "first commentary",
       text_role: "commentary",
+      division: "經疏部",
       composition_origin: "chinese",
       attributed_author: "Synthetic reviewer fixture"
     })
@@ -578,6 +642,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
       id: "T0400",
       title: "alternative root",
       text_role: "root",
+      division: "經集部",
       composition_origin: "chinese"
     })
 

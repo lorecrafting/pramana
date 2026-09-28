@@ -29,7 +29,12 @@ defmodule PramanaWeb.Router do
       if Guard.public?() do
         conn
       else
-        assign(conn, :local_reviewer, ReviewerAccess.active_scopes(user.id) != [])
+        conn
+        |> assign(:local_reviewer, ReviewerAccess.active_scopes(user.id) != [])
+        |> assign(
+          :local_rights_signer,
+          ReviewerAccess.active_scopes(user.id, "rights_signoff") != []
+        )
       end
     end
 

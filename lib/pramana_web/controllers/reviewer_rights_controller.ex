@@ -3,6 +3,7 @@ defmodule PramanaWeb.ReviewerRightsController do
 
   alias Pramana.Reviewer.Reviews
   alias Pramana.Reviewer.RightsReviews
+  alias Pramana.ReviewerAccess
 
   def index(conn, _params) do
     with {:ok, artifact} <- Reviews.configured_scope(),
@@ -12,7 +13,14 @@ defmodule PramanaWeb.ReviewerRightsController do
              conn.assigns.rights_scopes,
              conn.assigns.current_scope.user.id
            ) do
-      render(conn, :index, items: items, scope_sha256: artifact["scope_content_sha256"])
+      scope_sha256 = artifact["scope_content_sha256"]
+
+      render(conn, :index,
+        items: items,
+        scope_sha256: scope_sha256,
+        source_review_granted:
+          scope_sha256 in ReviewerAccess.active_scopes(conn.assigns.current_scope.user.id)
+      )
     else
       _ -> send_resp(conn, 503, "Rights scope unavailable")
     end

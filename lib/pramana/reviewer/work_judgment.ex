@@ -13,6 +13,7 @@ defmodule Pramana.Reviewer.WorkJudgment do
     field :scope_sha256, :string
     field :release_id, :string
     field :work_fingerprint, :string
+    field :work_snapshot, :map
     field :judgment, :string
     field :rationale, :string
     field :source_references, :string

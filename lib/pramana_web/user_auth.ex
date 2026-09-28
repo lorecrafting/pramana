@@ -46,7 +46,7 @@ defmodule PramanaWeb.UserAuth do
 
     conn
     |> create_or_extend_session(user, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> redirect(to: user_return_to || signed_in_path(conn, user))
   end
 
   @doc """
@@ -215,14 +215,27 @@ defmodule PramanaWeb.UserAuth do
   def redirect_if_user_is_authenticated(conn, _opts) do
     if conn.assigns.current_scope do
       conn
-      |> redirect(to: signed_in_path(conn))
+      |> redirect(to: signed_in_path(conn, conn.assigns.current_scope.user))
       |> halt()
     else
       conn
     end
   end
 
-  defp signed_in_path(_conn), do: "/"
+  def reviewer_home(%{id: user_id}) do
+    cond do
+      ReviewerAccess.active_scopes(user_id) != [] -> "/reviews"
+      ReviewerAccess.active_scopes(user_id, "rights_signoff") != [] -> "/reviews/rights"
+      true -> "/users/settings"
+    end
+  end
+
+  def reviewer_home(_), do: "/users/log-in"
+
+  defp signed_in_path(%{private: %{phoenix_endpoint: PramanaWeb.ReviewerEndpoint}}, user),
+    do: reviewer_home(user)
+
+  defp signed_in_path(_, _), do: "/"
 
   @doc """
   Plug for routes that require the user to be authenticated.

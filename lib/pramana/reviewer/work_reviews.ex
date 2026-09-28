@@ -18,6 +18,14 @@ defmodule Pramana.Reviewer.WorkReviews do
 
   def list(artifact, scopes, account_id) do
     with :ok <- Reviews.check_scope(artifact, scopes) do
+      works = manifest(artifact)
+      ids = Enum.map(works, & &1["work_id"])
+
+      rows =
+        from(w in Work, where: w.id in ^ids)
+        |> Repo.all()
+        |> Map.new(&{&1.id, &1})
+
       latest =
         from(j in WorkJudgment,
           where:
@@ -27,17 +35,20 @@ defmodule Pramana.Reviewer.WorkReviews do
         |> Repo.all()
         |> Enum.group_by(& &1.work_id)
 
-      {:ok,
-       Enum.map(manifest(artifact), fn work ->
-         fingerprint = ScopeArtifact.digest(work)
+      with {:ok, snapshots} <- current_snapshots(works, rows) do
+        {:ok,
+         Enum.map(snapshots, fn {work, snapshot} ->
+           fingerprint = ScopeArtifact.digest(snapshot)
 
-         judgment =
-           latest
-           |> Map.get(work["work_id"], [])
-           |> Enum.find(&(&1.work_fingerprint == fingerprint))
+           judgment =
+             latest
+             |> Map.get(work["work_id"], [])
+             |> Enum.find(&(&1.work_fingerprint == fingerprint))
 
-         %{work: work, fingerprint: fingerprint, judgment: judgment}
-       end)}
+           %{work: work, fingerprint: fingerprint, judgment: judgment}
+         end)
+         |> Enum.sort_by(& &1.work["work_id"])}
+      end
     end
   end
 
@@ -45,8 +56,8 @@ defmodule Pramana.Reviewer.WorkReviews do
     with :ok <- Reviews.check_scope(artifact, scopes),
          %{} = work <- Enum.find(manifest(artifact), &(&1["work_id"] == work_id)),
          %Work{} = row <- Repo.get(Work, work_id),
-         true <- row.title == work["title"] and row.text_role == work["text_role"] do
-      fingerprint = ScopeArtifact.digest(work)
+         {:ok, snapshot} <- current_snapshot(work, row) do
+      fingerprint = ScopeArtifact.digest(snapshot)
 
       history =
         from(j in WorkJudgment,
@@ -62,6 +73,7 @@ defmodule Pramana.Reviewer.WorkReviews do
        %{
          work: work,
          row: row,
+         snapshot: snapshot,
          fingerprint: fingerprint,
          scope_sha256: artifact["scope_content_sha256"],
          release_id: artifact["release"]["release_id"],
@@ -77,15 +89,16 @@ defmodule Pramana.Reviewer.WorkReviews do
          true <- params["scope_sha256"] == artifact["scope_content_sha256"],
          true <- params["release_id"] == artifact["release"]["release_id"],
          %{} = work <- Enum.find(manifest(artifact), &(&1["work_id"] == work_id)),
-         fingerprint <- ScopeArtifact.digest(work),
-         true <- params["work_fingerprint"] == fingerprint,
+         {:ok, snapshot} <- current_snapshot(work, Repo.get(Work, work_id)),
+         fingerprint <- ScopeArtifact.digest(snapshot),
+         :ok <- check_fingerprint(params["work_fingerprint"], fingerprint),
          changeset <- WorkJudgment.changeset(%WorkJudgment{}, clean_params(params)),
          true <- changeset.valid? do
       attrs = Ecto.Changeset.apply_changes(changeset)
 
       case Repo.insert_all(
              WorkJudgment,
-             authorized_insert(account, artifact, work, fingerprint, attrs),
+             authorized_insert(account, artifact, work, snapshot, fingerprint, attrs),
              returning: true
            ) do
         {1, [judgment]} -> {:ok, judgment}
@@ -100,9 +113,10 @@ defmodule Pramana.Reviewer.WorkReviews do
 
   def submit(_, _, _, _), do: {:error, :invalid_submission}
 
-  defp authorized_insert(account, artifact, work, fingerprint, attrs) do
+  defp authorized_insert(account, artifact, work, snapshot, fingerprint, attrs) do
     scope = artifact["scope_content_sha256"]
     release_id = artifact["release"]["release_id"]
+    metadata = snapshot["work_metadata"]
 
     from w in Work,
       join: a in User,
@@ -115,9 +129,19 @@ defmodule Pramana.Reviewer.WorkReviews do
       on: s.id == 1,
       join: release in ReleaseSchema,
       on: release.id == s.release_id and release.release_id == ^release_id,
+      where: [id: ^work["work_id"], title: ^work["title"], text_role: ^work["text_role"]],
       where:
-        w.id == ^work["work_id"] and w.title == ^work["title"] and
-          w.text_role == ^work["text_role"],
+        fragment(
+          "ROW(?, ?, ?, ?) IS NOT DISTINCT FROM ROW(?, ?, ?, ?)",
+          w.division,
+          w.attributed_author,
+          w.composition_origin,
+          w.attribution_confidence,
+          ^metadata["division"],
+          ^metadata["attributed_author"],
+          ^metadata["composition_origin"],
+          ^metadata["attribution_confidence"]
+        ),
       where:
         not exists(
           from d in Disposition,
@@ -132,6 +156,7 @@ defmodule Pramana.Reviewer.WorkReviews do
         scope_sha256: ^scope,
         release_id: release.release_id,
         work_fingerprint: ^fingerprint,
+        work_snapshot: ^snapshot,
         judgment: ^attrs.judgment,
         rationale: ^attrs.rationale,
         source_references: ^attrs.source_references,
@@ -146,6 +171,38 @@ defmodule Pramana.Reviewer.WorkReviews do
       {key, if(is_binary(value), do: String.trim(value), else: value)}
     end)
   end
+
+  defp current_snapshots(works, rows) do
+    Enum.reduce_while(works, {:ok, []}, fn work, {:ok, acc} ->
+      case current_snapshot(work, Map.get(rows, work["work_id"])) do
+        {:ok, snapshot} -> {:cont, {:ok, [{work, snapshot} | acc]}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp current_snapshot(work, %Work{} = row) do
+    if row.title == work["title"] and row.text_role == work["text_role"] and
+         (not Map.has_key?(work, "division") or row.division == work["division"]) do
+      {:ok,
+       %{
+         "scope_work" => work,
+         "work_metadata" => %{
+           "division" => row.division,
+           "attributed_author" => row.attributed_author,
+           "composition_origin" => row.composition_origin,
+           "attribution_confidence" => row.attribution_confidence
+         }
+       }}
+    else
+      {:error, :stale_or_unauthorized}
+    end
+  end
+
+  defp current_snapshot(_, _), do: {:error, :stale_or_unauthorized}
+
+  defp check_fingerprint(value, value), do: :ok
+  defp check_fingerprint(_, _), do: {:error, :stale_or_unauthorized}
 
   defp manifest(artifact) do
     answer_works =
