@@ -7,6 +7,16 @@ defmodule PramanaWeb.Supervisor do
 
   @impl Supervisor
   def init(_arg) do
+    if Pramana.Runtime.reviewer?() do
+      Supervisor.init([PramanaWeb.Telemetry, PramanaWeb.ReviewerEndpoint],
+        strategy: :one_for_one
+      )
+    else
+      Supervisor.init(reader_children(), strategy: :one_for_one)
+    end
+  end
+
+  defp reader_children do
     permit_supervisor =
       Supervisor.child_spec(
         {DynamicSupervisor,
@@ -26,6 +36,6 @@ defmodule PramanaWeb.Supervisor do
       {PramanaWeb.MCP.Server, transport: :streamable_http}
     ]
 
-    Supervisor.init(children, strategy: :one_for_one)
+    children
   end
 end

@@ -42,6 +42,14 @@ config :pramana, PramanaWeb.Endpoint,
   pubsub_server: Pramana.PubSub,
   live_view: [signing_salt: "oh6/CmTf"]
 
+config :pramana, PramanaWeb.ReviewerEndpoint,
+  url: [host: "localhost"],
+  adapter: Bandit.PhoenixAdapter,
+  render_errors: [
+    formats: [html: PramanaWeb.ErrorHTML, json: PramanaWeb.ErrorJSON],
+    layout: false
+  ]
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
@@ -70,6 +78,7 @@ config :logger, :default_formatter,
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
+config :phoenix, :filter_parameters, ["credential", "password", "token"]
 
 # EXLA compiles Nx to native code; without it embedding runs on the pure-Elixir
 # backend and is orders of magnitude slower.

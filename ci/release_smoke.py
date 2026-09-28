@@ -23,6 +23,8 @@ URN = "pramana:sc.ms:smoke1@1.1"
 SECRET = "synthetic-release-smoke-only-" + "0" * 64
 READER = "smoke_reader"
 READER_PASSWORD = "synthetic-reader-only"
+REVIEWER = "smoke_reviewer"
+REVIEWER_PASSWORD = "synthetic-reviewer-only"
 BAKE_TEXT = "PUBLIC_INGEST_SENTINEL"
 BAKE_XML = f"""<TEI xmlns="http://www.tei-c.org/ns/1.0">
 <teiHeader><fileDesc><titleStmt><title level="m" xml:lang="zh-Hant">Synthetic bake</title>
@@ -132,6 +134,8 @@ VALUES ('completed','bake','Pramana.Bake.Worker','{{}}',1,now()-interval '9 days
         self.sql("postgres", f"""
 CREATE ROLE {READER} LOGIN PASSWORD '{READER_PASSWORD}' NOSUPERUSER NOCREATEDB
   NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT;
+CREATE ROLE {REVIEWER} LOGIN PASSWORD '{REVIEWER_PASSWORD}' NOSUPERUSER NOCREATEDB
+  NOCREATEROLE NOREPLICATION NOBYPASSRLS NOINHERIT;
 """)
         for database in ["allowed", "forbidden", "restricted_translation", "unmigrated", "queued", "audit_denied"]:
             self.sql(database, f"""
@@ -143,6 +147,14 @@ REVOKE ALL ON ALL TABLES IN SCHEMA public FROM PUBLIC;
 REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM PUBLIC;
 SELECT format('GRANT SELECT ON TABLE %I.%I TO {READER}', schemaname, tablename)
 FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
+  AND tablename NOT LIKE 'reviewer_%' AND tablename <> 'schema_migrations'
+\\gexec
+""")
+        self.sql("forbidden", f"""
+GRANT CONNECT ON DATABASE forbidden TO {REVIEWER};
+GRANT USAGE ON SCHEMA public TO {REVIEWER};
+SELECT format('GRANT SELECT ON TABLE %I.%I TO {REVIEWER}', schemaname, tablename)
+FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename <> 'schema_migrations'
 \\gexec
 """)
@@ -151,12 +163,15 @@ FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
     def options(self, case, database, public=True, role=None):
         name = self.prefix + "-" + case
         role = role or (READER if public else "postgres")
-        password = READER_PASSWORD if role == READER else "postgres"
+        password = (READER_PASSWORD if role == READER else
+                    REVIEWER_PASSWORD if role == REVIEWER else "postgres")
         return name, ["--name", name, "--label", self.label, "--network", self.network,
                       "-e", f"DATABASE_URL=ecto://{role}:{password}@db/{database}",
                       "-e", f"SECRET_KEY_BASE={SECRET}", "-e", "APP_HOST=localhost",
                       "-e", "PORT=4000", "-e", "POOL_SIZE=2",
                       "-e", "PRAMANA_EMBEDDING=0", "-e", f"PRAMANA_PUBLIC={'1' if public else '0'}",
+                      "-e", f"PRAMANA_REVIEWER={'1' if role == REVIEWER else '0'}",
+                      "-e", f"PRAMANA_SMOKE_ROLE={role}",
                       "--mount", f"type=bind,source={self.raw},target=/app/raw,readonly"]
 
     def evaluate(self, case, database, code, public=False, serving=None):
@@ -259,6 +274,41 @@ FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
             self.read_only_queries(port, session)
         self.docker("stop", "-t", "10", name)
         self.results["cases"].append({"case": case, "passed": True, "assets": sorted(assets)})
+
+    def reviewer(self):
+        name, port = self.launch("private-reviewer", "forbidden", public=False, role=REVIEWER)
+        deadline = time.monotonic() + 45
+        while True:
+            if not self.state(name)["Running"]:
+                raise RuntimeError("private reviewer runtime exited before HTTP readiness")
+            try:
+                status, _, body = self.request(port, "/login")
+                if status == 200 and "Reviewer sign in" in body:
+                    break
+            except (OSError, http.client.HTTPException):
+                pass
+            if time.monotonic() >= deadline:
+                raise RuntimeError("private reviewer login never became ready")
+            time.sleep(0.1)
+
+        assert self.request(port, "/")[0] == 302
+        assert self.request(port, "/mcp")[0] == 404
+        assert self.request(port, "/passage")[0] == 404
+        assert self.request(port, "/live/websocket")[0] == 404
+
+        code = """
+unless Process.whereis(PramanaWeb.ReviewerEndpoint), do: raise("reviewer endpoint absent")
+if Process.whereis(PramanaWeb.Endpoint), do: raise("ordinary reader endpoint started")
+ids = Supervisor.which_children(PramanaWeb.Supervisor) |> Enum.map(&elem(&1, 0))
+if PramanaWeb.MCP.Server in ids, do: raise("MCP server started")
+if Oban.whereis(Oban), do: raise("Oban started")
+IO.puts("REVIEWER_RUNTIME_ISOLATED")
+"""
+        assert "REVIEWER_RUNTIME_ISOLATED" in self.rpc(name, code).stdout
+        probe = Path(__file__).with_name("serving_privileges.exs").read_text()
+        assert "SERVING_PRIVILEGES_OK" in self.rpc(name, probe).stdout
+        self.docker("stop", "-t", "10", name)
+        self.results["cases"].append({"case": "private-reviewer", "passed": True})
 
     def rpc(self, name, code):
         return self.docker("exec", name, "/app/bin/pramana", "rpc", code, timeout=45)
@@ -492,6 +542,7 @@ def main():
         smoke.prepare()
         smoke.admin()
         smoke.serving(public=True)
+        smoke.reviewer()
         smoke.rejection("forbidden-source", "forbidden", "public_corpus_forbidden")
         smoke.rejection("forbidden-rendering", "restricted_translation", "public_corpus_forbidden")
         smoke.rejection("missing-schema", "unmigrated", "publishing_audit_unavailable")

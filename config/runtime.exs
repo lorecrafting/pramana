@@ -10,6 +10,9 @@ import Config
 config :pramana, PramanaWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+config :pramana, PramanaWeb.ReviewerEndpoint,
+  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||
@@ -49,6 +52,12 @@ if config_env() == :prod do
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       ip: {0, 0, 0, 0, 0, 0, 0, 0}
     ],
+    secret_key_base: secret_key_base
+
+  config :pramana, PramanaWeb.ReviewerEndpoint,
+    server: System.get_env("PHX_SERVER") in ["true", "1"],
+    url: [host: System.get_env("APP_HOST", "example.com")],
+    http: [ip: {0, 0, 0, 0, 0, 0, 0, 0}],
     secret_key_base: secret_key_base
 
   # ## Using releases
