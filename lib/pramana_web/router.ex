@@ -17,6 +17,21 @@ defmodule PramanaWeb.Router do
     plug :accepts, ["json"]
   end
 
+  if Mix.env() in [:dev, :test] do
+    pipeline :reviewer do
+      plug :require_authenticated_user
+      plug :require_reviewer_grant
+    end
+
+    scope "/", PramanaWeb do
+      pipe_through [:browser, :reviewer]
+
+      get "/reviews", ReviewerController, :index
+      get "/reviews/:id", ReviewerJudgmentController, :show
+      post "/reviews/:id", ReviewerJudgmentController, :create
+    end
+  end
+
   # The MCP surface. Not under a browser pipeline: it is JSON-RPC over Streamable
   # HTTP, consumed by agents rather than browsers.
   forward "/mcp", Anubis.Server.Transport.StreamableHTTP.Plug, server: PramanaWeb.MCP.Server

@@ -8,6 +8,7 @@ defmodule PramanaWeb.UserAuth do
 
   alias Pramana.Accounts
   alias Pramana.Accounts.Scope
+  alias Pramana.ReviewerAccess
 
   def absolute_url(%{private: %{phoenix_endpoint: PramanaWeb.ReviewerEndpoint}}, path),
     do: PramanaWeb.ReviewerEndpoint.url() <> path
@@ -235,6 +236,16 @@ defmodule PramanaWeb.UserAuth do
       |> maybe_store_return_to()
       |> redirect(to: "/users/log-in")
       |> halt()
+    end
+  end
+
+  def require_reviewer_grant(conn, _opts) do
+    scopes = ReviewerAccess.active_scopes(conn.assigns.current_scope.user.id)
+
+    if scopes == [] do
+      conn |> send_resp(403, "Reviewer grant required") |> halt()
+    else
+      assign(conn, :reviewer_scopes, scopes)
     end
   end
 

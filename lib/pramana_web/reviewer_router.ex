@@ -3,7 +3,6 @@ defmodule PramanaWeb.ReviewerRouter do
 
   use PramanaWeb, :router
   import PramanaWeb.UserAuth
-  alias Pramana.ReviewerAccess
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -57,15 +56,5 @@ defmodule PramanaWeb.ReviewerRouter do
     get "/", ReviewerController, :index
     get "/reviews/:id", ReviewerJudgmentController, :show
     post "/reviews/:id", ReviewerJudgmentController, :create
-  end
-
-  defp require_reviewer_grant(conn, _opts) do
-    scopes = ReviewerAccess.active_scopes(conn.assigns.current_scope.user.id)
-
-    if scopes == [] do
-      conn |> send_resp(403, "Reviewer grant required") |> halt()
-    else
-      assign(conn, :reviewer_scopes, scopes)
-    end
   end
 end
