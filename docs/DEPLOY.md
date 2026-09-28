@@ -140,8 +140,9 @@ from PUBLIC/other roles, column-level grants, ownership, security-definer routin
 extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` membership.
 New tables after migrations require a reviewed grant update; do not solve a missing read
 privilege by granting ownership, ALL, sequence access or membership in an administrator.
-In particular, the public login must have **no SELECT** on `reviewer_accounts` or
-`reviewer_grants`. Revoke any older blanket grants when adding these tables.
+In particular, the public login must have **no SELECT** on `reviewer_accounts`,
+`reviewer_grants` or `reviewer_judgments`. Revoke any older blanket grants when adding
+these tables.
 Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
 `has_any_column_privilege`, `has_sequence_privilege`, `pg_has_role`) plus real denied-write
 checks in an isolated copy. `default_transaction_read_only` is not a substitute for grants:
@@ -203,17 +204,26 @@ mix pramana.reviewer revoke --login-id INDIVIDUAL_ID
 The last command disables the account. Rotating the credential or disabling the
 account invalidates previous sessions; revoking its last scope removes access on the
 next request. Provisioning does not create a reviewer judgment or clear `needs_review`.
-The private form for attributed judgments is tracked separately in
-[#75](https://github.com/lorecrafting/pramana/issues/75).
+
+Mount the exact reviewed `mix pramana.pilot.scope` JSON artifact read-only in the private
+runtime and set `PRAMANA_REVIEW_SCOPE_PATH` to that file. The private page validates its
+schema and content hash before listing cases. A submission rechecks the individual
+account, live grant, selected release and current relation evidence. Where available,
+the source context shows current-bake shared passages with their CBETA Taishō addresses,
+exact character offsets and text hashes. Shared text alone does not prove which edition
+a commentary explains.
+A reviewer judgment remains separate from the relation and does not clear
+`needs_review`. The saved artifact's validation does not establish live scope
+currentness or rights acceptance;
+[#63](https://github.com/lorecrafting/pramana/issues/63) remains the preflight gate.
 
 Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
-on only the needed corpus and reviewer account/grant tables; give it no corpus, account
-or grant DML, sequence, schema-create, role-switch or Oban privilege. The current
-sign-in flow makes no database writes. The later review-submission slice will require
-only narrow INSERT rights on its new review table. Keep the operator credential out of
-the HTTP environment. Independently inspect the actual role's effective privileges
-before deployment; the container smoke test proves this boundary for its own synthetic
-role and database, not for an operator installation.
+on only the needed corpus and reviewer account, grant and judgment tables, and INSERT
+only on `reviewer_judgments`. Give it no UPDATE or DELETE there and no corpus, account
+or grant DML, sequence, schema-create, role-switch or Oban privilege. Keep the operator
+credential out of the HTTP environment. Independently inspect the actual role's
+effective privileges before deployment; the container smoke test proves this boundary
+for its own synthetic role and database, not for an operator installation.
 
 ## Acceptance is broader than build success
 

@@ -41,7 +41,9 @@ reconcile it with current code before dispatching work from it.
   [PR #77](https://github.com/lorecrafting/pramana/pull/77) with independent review and
   green app, docs and container CI. The owner still needs to identify the individual
   behind the “silent principal” display name; an operator must provision their login and
-  exact accepted scope grant in a restricted deployment. No real account exists yet.
+  exact accepted scope grant in a restricted deployment. The private submission path is
+  implemented under [#75](https://github.com/lorecrafting/pramana/issues/75), but no real
+  account or judgment exists yet.
 - **[Select the Chinese pilot inference route](https://github.com/lorecrafting/pramana/issues/65).** Compare a capable external route and a
   local route on the same frozen source-bound reading sample, terminology and qualified
   evaluator rubric; record fidelity by text role, latency, cost and exact processing
@@ -51,10 +53,6 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
-- **Attributable commentary-link submissions [#75](https://github.com/lorecrafting/pramana/issues/75).**
-  Show the exact flagged assertion and source context to a granted reviewer, then record
-  their supported, disputed or cannot-determine judgment against the current evidence,
-  scope and release. Keep the relation marked `needs_review` until an operator decides.
 - **Operator adjudication [#76](https://github.com/lorecrafting/pramana/issues/76).**
   Give the operator a CLI path to inspect attributed judgments and record a source-backed
   disposition. Any relation change must invalidate or recompute affected derivation and
