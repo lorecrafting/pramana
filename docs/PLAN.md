@@ -43,9 +43,11 @@ reconcile it with current code before dispatching work from it.
   answerable and unanswerable near-misses under the same filters before a suppression rule.
 - **Review Japanese composition labels in CBETA X.** On 2026-09-27 `mix pramana.doctor`
   reports 23 Japanese-composed works, while the older absence-case source says 145.
-  X0967 contains 唱題 but has `composition_origin` NULL, so `origin: japanese` excludes it.
-  Check the edition's attribution before changing classification, then revisit that gold
-  case's premise.
+  `Pramana.Cbeta.Byline.japanese?/1` matches any byline containing `日本`, so X0650's
+  Chinese-authored text with a Japanese arranger is labelled Japanese-composed. X0967
+  contains 唱題 but has `composition_origin` NULL, so `origin: japanese` excludes it.
+  Separate authors from editors using the edition's attribution before changing
+  classification, then revisit that gold case's premise.
 - **`topical/chinese` and Tibetan recall.** [§ F](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#f-topicalchinese-is-still-0--now-measured-over-496-cases-rather-than-12) and
   [§ G](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#g-tibetan-recall--24-cases-unreachable); Tibetan misses are absent from 200 candidates, a recall problem.
 - **Public demo.** [§ E](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#e-public-demo--newly-unblocked); now bounded by the
