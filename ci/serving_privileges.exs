@@ -6,6 +6,8 @@ defmodule Pramana.CI.ServingPrivileges do
   alias Pramana.Repo
 
   def run do
+    expected_role = System.get_env("PRAMANA_SMOKE_ROLE", "smoke_reader")
+
     # A read-only transaction default is reversible by its user and is not a grant
     # boundary. Denial tests below deliberately request read-write transactions.
     expect!(
@@ -13,7 +15,7 @@ defmodule Pramana.CI.ServingPrivileges do
       SELECT current_user, session_user, rolsuper, rolcreatedb, rolcreaterole,
              rolreplication, rolbypassrls
       FROM pg_roles WHERE rolname = current_user
-      """) == [["smoke_reader", "smoke_reader", false, false, false, false, false]],
+      """) == [[expected_role, expected_role, false, false, false, false, false]],
       "unexpected serving identity or elevated role attributes"
     )
 
@@ -88,6 +90,23 @@ defmodule Pramana.CI.ServingPrivileges do
         end)
 
       expect!(denied == {:error, :denied}, "serving operation was not denied: #{statement}")
+    end
+
+    if expected_role == "smoke_reader" do
+      for table <- ["reviewer_accounts", "reviewer_grants"] do
+        denied = Ecto.Adapters.SQL.query(Repo, "SELECT * FROM #{table} LIMIT 0", [])
+
+        expect!(
+          match?({:error, %Postgrex.Error{postgres: %{code: :insufficient_privilege}}}, denied),
+          "public reader could inspect private reviewer table: #{table}"
+        )
+      end
+    else
+      expect!(
+        query!("SELECT count(*) FROM reviewer_accounts") == [[0]] and
+          query!("SELECT count(*) FROM reviewer_grants") == [[0]],
+        "private reviewer cannot read account/grant records"
+      )
     end
 
     IO.puts("SERVING_PRIVILEGES_OK")

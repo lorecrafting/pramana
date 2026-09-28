@@ -21,6 +21,12 @@ config :pramana, PramanaWeb.Endpoint,
     ]
   ]
 
+config :pramana, PramanaWeb.ReviewerEndpoint,
+  force_ssl: [
+    rewrite_on: [:x_forwarded_proto],
+    exclude: [hosts: ["localhost", "127.0.0.1"]]
+  ]
+
 # Do not print debug messages in production
 config :logger, level: :info
 

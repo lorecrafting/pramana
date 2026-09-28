@@ -45,6 +45,12 @@ reconcile it with current code before dispatching work from it.
 
 ### Engineering
 
+- **Private reviewer access [#74](https://github.com/lorecrafting/pramana/issues/74).**
+  Add individual operator-provisioned accounts and exact-scope grants in a private HTTP
+  process. Keep the ordinary reader/MCP read-only and exclude reviewer identity tables
+  from its database grants. This access layer does not resolve flagged links; attributed
+  submissions [#75](https://github.com/lorecrafting/pramana/issues/75) and explicit
+  operator adjudication [#76](https://github.com/lorecrafting/pramana/issues/76) follow.
 - **Refresh the Chinese pilot candidate.** A 2026-09-28 full CBETA verification found
   that local T0262 contained an eight-character stub despite its locked source XML.
   A targeted bake restored its 92,287-character body; full verification of all 4,263

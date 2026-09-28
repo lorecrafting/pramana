@@ -7,9 +7,13 @@ defmodule Pramana.Application do
 
   alias Pramana.Embed.Serving
   alias Pramana.Publishing.Guard
+  alias Pramana.Runtime
 
   @impl true
   def start(_type, _args) do
+    if Runtime.reviewer?() and Guard.public?(),
+      do: raise("PRAMANA_REVIEWER and PRAMANA_PUBLIC cannot both be enabled")
+
     # BEFORE the supervisor starts anything, so a job that fails during boot is still
     # reported. Attaching is idempotent.
     Pramana.Telemetry.attach()
@@ -25,7 +29,7 @@ defmodule Pramana.Application do
         {Phoenix.PubSub, name: Pramana.PubSub},
         # Opt-in: loading BGE-M3 costs ~80s and 2.2 GB, which tests and migrations
         # must not pay. Absent, semantic retrieval degrades to lexical and says so.
-        Serving.child_spec_if_enabled(),
+        unless(Runtime.reviewer?(), do: Serving.child_spec_if_enabled()),
         PramanaWeb.Supervisor
       ]
       |> Enum.reject(&is_nil/1)
@@ -43,6 +47,7 @@ defmodule Pramana.Application do
   # database peer. Disabling queues alone leaves other writers running. The package
   # remains available to administrative processes; only this instance is omitted.
   defp background_jobs do
-    unless Guard.public?(), do: {Oban, Application.fetch_env!(:pramana, Oban)}
+    unless Guard.public?() or Runtime.reviewer?(),
+      do: {Oban, Application.fetch_env!(:pramana, Oban)}
   end
 end

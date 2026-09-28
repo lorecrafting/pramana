@@ -2,7 +2,7 @@ defmodule Pramana.Runtime do
   @moduledoc """
   What a process declares about itself before the application starts.
 
-  One function so far, and it lives here rather than on `Pramana.Repo` for a reason the
+  Pool sizing lives here rather than on `Pramana.Repo` for a reason the
   boundary test enforces: `mix pramana.mcp.stdio` needs it and lives in `lib/pramana_web`, which
   `Architecture.BoundariesTest` forbids from touching the repo at all. That boundary is
   right — the web layer is transport and the domain owns the data — and its allowlist is
@@ -38,4 +38,7 @@ defmodule Pramana.Runtime do
     config = Application.get_env(:pramana, Pramana.Repo, [])
     Application.put_env(:pramana, Pramana.Repo, Keyword.put(config, :pool_size, size))
   end
+
+  @doc "Whether this process is the private, reviewer-only HTTP runtime."
+  def reviewer?, do: System.get_env("PRAMANA_REVIEWER") == "1"
 end

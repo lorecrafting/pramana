@@ -56,6 +56,11 @@ config :pramana, PramanaWeb.Endpoint,
     tailwind: {Tailwind, :install_and_run, [:pramana_web, ~w(--watch)]}
   ]
 
+config :pramana, PramanaWeb.ReviewerEndpoint,
+  http: [ip: {127, 0, 0, 1}],
+  server: System.get_env("PHX_SERVER") in ["true", "1"],
+  secret_key_base: "nzFEBTu6TE+zzsl/cxxm6k2soEGUnNTDQoysm2l9PpeUfXXva8wEk/qgjSSj3ksJ"
+
 # ## SSL Support
 #
 # In order to use HTTPS in development, a self-signed

@@ -130,7 +130,8 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO pramana_reader', current_database
 -- Inventory the corpus tables before executing these generated grants.
 SELECT format('GRANT SELECT ON TABLE %I.%I TO pramana_reader', schemaname, tablename)
 FROM pg_tables WHERE schemaname = 'public'
-  AND tablename NOT LIKE 'oban_%' AND tablename <> 'schema_migrations';
+  AND tablename NOT LIKE 'oban_%' AND tablename NOT LIKE 'reviewer_%'
+  AND tablename <> 'schema_migrations';
 ```
 
 The last query prints statements for review; it deliberately does not execute them or
@@ -139,6 +140,8 @@ from PUBLIC/other roles, column-level grants, ownership, security-definer routin
 extensions and other schemas. `NOINHERIT` alone does not prohibit `SET ROLE` membership.
 New tables after migrations require a reviewed grant update; do not solve a missing read
 privilege by granting ownership, ALL, sequence access or membership in an administrator.
+In particular, the public login must have **no SELECT** on `reviewer_accounts` or
+`reviewer_grants`. Revoke any older blanket grants when adding these tables.
 Use PostgreSQL's effective-privilege inquiries (`has_table_privilege`,
 `has_any_column_privilege`, `has_sequence_privilege`, `pg_has_role`) plus real denied-write
 checks in an isolated copy. `default_transaction_read_only` is not a substitute for grants:
@@ -168,6 +171,49 @@ restricted grants as a routine application rollback. Code rollback does not rest
 
 Primary privilege semantics: [PostgreSQL privileges](https://www.postgresql.org/docs/18/ddl-priv.html)
 and [access-privilege inquiries](https://www.postgresql.org/docs/18/functions-info.html#FUNCTIONS-INFO-ACCESS-TABLE).
+
+## Private source-review runtime
+
+`PRAMANA_REVIEWER=1` starts a separate HTTP endpoint. It exposes reviewer sign-in and
+granted scopes; it does not start the ordinary reader, LiveView socket, MCP server,
+embedding server or Oban. It cannot be combined with `PRAMANA_PUBLIC=1`. Put this
+endpoint behind a private network and TLS; its signed session cookie is Secure and
+expires after eight hours. `PHX_SERVER=true` is still required to serve HTTP.
+This mode does not itself approve any corpus for participant or public use.
+
+Run migrations and account management with separate operator credentials and with
+`PRAMANA_REVIEWER` unset. After reviewing the exact pilot scope hash, provision one
+individual login and grant. “silent principal” is only the initial display name; the
+operator must bind the login ID and privately delivered credential to one real person.
+The random credential is printed once, stored only as a digest, and must not be copied
+into this repository or a shared account. For example:
+
+```sh
+mix compile
+mix pramana.reviewer provision --login-id INDIVIDUAL_ID \
+  --display-name 'silent principal' --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
+mix pramana.reviewer grant --login-id INDIVIDUAL_ID \
+  --scope-sha256 NEXT_EXACT_SCOPE_HASH --operator OPERATOR_ID
+mix pramana.reviewer revoke --login-id INDIVIDUAL_ID \
+  --scope-sha256 EXACT_SCOPE_HASH --operator OPERATOR_ID
+mix pramana.reviewer rotate --login-id INDIVIDUAL_ID
+mix pramana.reviewer revoke --login-id INDIVIDUAL_ID
+```
+
+The last command disables the account. Rotating the credential or disabling the
+account invalidates previous sessions; revoking its last scope removes access on the
+next request. Provisioning does not create a reviewer judgment or clear `needs_review`.
+The private form for attributed judgments is tracked separately in
+[#75](https://github.com/lorecrafting/pramana/issues/75).
+
+Use a distinct non-owner PostgreSQL login for the private HTTP process. Grant it SELECT
+on only the needed corpus and reviewer account/grant tables; give it no corpus, account
+or grant DML, sequence, schema-create, role-switch or Oban privilege. The current
+sign-in flow makes no database writes. The later review-submission slice will require
+only narrow INSERT rights on its new review table. Keep the operator credential out of
+the HTTP environment. Independently inspect the actual role's effective privileges
+before deployment; the container smoke test proves this boundary for its own synthetic
+role and database, not for an operator installation.
 
 ## Acceptance is broader than build success
 

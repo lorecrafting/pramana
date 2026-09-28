@@ -20,6 +20,11 @@ config :pramana, PramanaWeb.Endpoint,
   secret_key_base: "n9uPsLfqSbFJdv+Rb6ezmJHMIvwBHrILrUxJDYaWLOfef4czzrrivvKWQlGuJBbe",
   server: false
 
+config :pramana, PramanaWeb.ReviewerEndpoint,
+  http: [ip: {127, 0, 0, 1}, port: 4003],
+  secret_key_base: "n9uPsLfqSbFJdv+Rb6ezmJHMIvwBHrILrUxJDYaWLOfef4czzrrivvKWQlGuJBbe",
+  server: false
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 
