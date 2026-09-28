@@ -87,8 +87,9 @@ reconcile it with current code before dispatching work from it.
 ## Where the product stands
 
 **The three blocks below are generated** — `mix pramana.docs.figures`, checked by the gate.
-This table said 249 work relations when there were 269 and 17 MCP tools when the directory
-held 18, so the counts no longer live in prose. Rule 77.
+They are the recorded snapshot from source commit `75a56c13ebafa0ab7e67f2cf12f47ad84aad2ebc`,
+not measurements of the repaired pilot candidate. Current-bake verification and the
+partial relation receipt are tracked above and in [#63](https://github.com/lorecrafting/pramana/issues/63).
 
 <!-- figures:corpus -->
 | | |
