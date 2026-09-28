@@ -511,7 +511,10 @@ defmodule Pramana.PilotParticipants do
       value["minimum_supported_commentary_eligible_tasks_after_exclusions"] != 6,
       "supported commentary-eligible task floor must be 6"
     )
-    |> require_true(value, "supported_commentary_denominator_includes_unopened_and_failed_attempts")
+    |> require_true(
+      value,
+      "supported_commentary_denominator_includes_unopened_and_failed_attempts"
+    )
     |> require_true(value, "correct_scoped_refusals_do_not_satisfy_commentary_floor")
     |> require_true(value, "replenish_after_withdrawal_or_exclusion")
   end
