@@ -84,7 +84,7 @@ system, long after the commit that broke it.
 list is present, so a green suite cannot quietly come to mean a completed review.
 
 **Each rule has an allowlist with a reason, on purpose.** These boundaries will move —
-another tensor library, some future reason the web app needs something. Widening a rule is
+another tensor library, some future reason the web layer needs something. Widening a rule is
 one reviewed line in a diff; the escape hatch is what makes the distinction between
 *evolution* and *drift* real. A rule with no escape hatch is a rule somebody deletes the
 first time it is inconvenient, which is strictly worse than a visible list of exceptions.
@@ -92,7 +92,7 @@ first time it is inconvenient, which is strictly worse than a visible list of ex
 Re-read `CLAUDE.md`'s invariants and confirm the phase's code honors **all eight** — this line said "all seven" while `CLAUDE.md` listed eight, which is a review that cannot notice the one it does not count.
 Specifically audit:
 - ~~Does anything **in** `lib/pramana_web` read the DB directly~~ — **now mechanical**,
-  `Architecture.BoundariesTest`. (It must not: the web app is transport, the domain app
+  `Architecture.BoundariesTest`. (It must not: the web layer is transport, the domain layer
   owns the data.) This one has drifted once already, via an MCP resource that built its
   own aggregation.
 - ~~Did any domain logic leak into `priv/embed`?~~ — **now mechanical**, same file, by

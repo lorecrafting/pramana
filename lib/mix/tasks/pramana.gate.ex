@@ -73,7 +73,7 @@ defmodule Mix.Tasks.Pramana.Gate do
   need judgement stay with a person, and the closing summary says so.
 
   Two of §2's five audits became mechanical on 2026-09-01 and ride in on the `test` step —
-  `Architecture.BoundariesTest`, the web app's database boundary and the sidecar's. The
+  `Architecture.BoundariesTest`, the web layer's database boundary and the sidecar's. The
   closing summary names them so that "the gate passed" keeps meaning exactly as much as it
   did before, rather than quietly widening.
   """

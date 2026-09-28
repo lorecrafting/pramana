@@ -20,7 +20,7 @@ defmodule Architecture.BoundariesTest do
 
   ## Leeway is the point, and it is deliberate
 
-  These boundaries will move. `priv/embed` may need another tensor library; the web app may
+  These boundaries will move. `priv/embed` may need another tensor library; the web layer may
   one day have a reason nobody has thought of yet. So each rule carries an **allowlist with
   a reason**, and widening it is one line in a diff somebody reviews.
 
@@ -37,7 +37,7 @@ defmodule Architecture.BoundariesTest do
   # directories, which would make these assertions pass against an empty tree.
   @root Path.expand("../../..", __DIR__)
 
-  describe "the web app is transport and the domain app owns the data" do
+  describe "the web layer is transport and the domain layer owns the data" do
     # `CLAUDE.md` layout: "`pramana` is pure domain logic with no web dependency", and the
     # inverse is what keeps it true. It has drifted once already — via an MCP resource that
     # built its own aggregation — which is why §2 names this one specifically.
@@ -56,7 +56,7 @@ defmodule Architecture.BoundariesTest do
 
       assert offenders == [],
              """
-             The web app is transport; the domain app owns the data. These read the
+             The web layer is transport; the domain layer owns the data. These read the
              database directly:
 
              #{Enum.map_join(offenders, "\n", fn {file, line, match} -> "    #{file}:#{line}  #{match}" end)}
