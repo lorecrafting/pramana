@@ -23,18 +23,27 @@ defmodule PramanaWeb.Router do
 
   if Mix.env() in [:dev, :test] do
     alias Pramana.Publishing.Guard
+    alias Pramana.Reviewer.Reviews
     alias Pramana.ReviewerAccess
 
     defp assign_local_reviewer(%{assigns: %{current_scope: %{user: user}}} = conn, _opts) do
       if Guard.public?() do
         conn
       else
-        conn
-        |> assign(:local_reviewer, ReviewerAccess.active_scopes(user.id) != [])
-        |> assign(
-          :local_rights_signer,
-          ReviewerAccess.active_scopes(user.id, "rights_signoff") != []
-        )
+        case Reviews.configured_scope() do
+          {:ok, artifact} ->
+            scope = artifact["scope_content_sha256"]
+
+            conn
+            |> assign(:local_reviewer, scope in ReviewerAccess.active_scopes(user.id))
+            |> assign(
+              :local_rights_signer,
+              scope in ReviewerAccess.active_scopes(user.id, "rights_signoff")
+            )
+
+          _ ->
+            conn
+        end
       end
     end
 

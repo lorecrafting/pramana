@@ -8,6 +8,7 @@ defmodule PramanaWeb.UserAuth do
 
   alias Pramana.Accounts
   alias Pramana.Accounts.Scope
+  alias Pramana.Reviewer.Reviews
   alias Pramana.ReviewerAccess
 
   def absolute_url(%{private: %{phoenix_endpoint: PramanaWeb.ReviewerEndpoint}}, path),
@@ -223,10 +224,18 @@ defmodule PramanaWeb.UserAuth do
   end
 
   def reviewer_home(%{id: user_id}) do
-    cond do
-      ReviewerAccess.active_scopes(user_id) != [] -> "/reviews"
-      ReviewerAccess.active_scopes(user_id, "rights_signoff") != [] -> "/reviews/rights"
-      true -> "/users/settings"
+    case Reviews.configured_scope() do
+      {:ok, artifact} ->
+        scope = artifact["scope_content_sha256"]
+
+        cond do
+          scope in ReviewerAccess.active_scopes(user_id) -> "/reviews"
+          scope in ReviewerAccess.active_scopes(user_id, "rights_signoff") -> "/reviews/rights"
+          true -> "/users/settings"
+        end
+
+      _ ->
+        "/users/settings"
     end
   end
 

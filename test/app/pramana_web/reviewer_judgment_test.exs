@@ -504,6 +504,33 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert index.status == 200
     assert index.resp_body =~ ~s(href="/reviews/rights")
     refute index.resp_body =~ ~s(href="/reviews")
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        signer.email,
+        String.duplicate("f", 64),
+        "operator-1"
+      )
+
+    next_login =
+      post_form("/users/log-in", login_page, login_page, "user", %{
+        "email" => signer.email,
+        "password" => AccountsFixtures.valid_user_password()
+      })
+
+    assert {"location", "/reviews/rights"} in next_login.resp_headers
+
+    unless Process.whereis(Endpoint), do: start_supervised!(Endpoint)
+
+    local_page =
+      PlugTest.conn(:get, "/")
+      |> PlugTest.init_test_session(%{
+        user_token: Accounts.generate_user_session_token(signer)
+      })
+      |> Endpoint.call([])
+
+    assert local_page.resp_body =~ ~s(href="/reviews/rights")
+    refute local_page.resp_body =~ ~s(href="/reviews")
   end
 
   test "rights decisions require their own grant and preserve exact use evidence", context do
