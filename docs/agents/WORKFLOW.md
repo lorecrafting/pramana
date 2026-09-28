@@ -31,6 +31,34 @@ session's uncommitted files, force-push a shared branch, or stage the entire sha
 working tree. Stage only paths you changed; rule [81](../RULES.md#rule-81) explains why.
 Coordinate shared plan edits instead of silently updating another worker's ticket status.
 
+## Deliver a change
+
+Borrow the PM → developer → independent reviewer loop from
+[LokaCore's delivery workflow](https://github.com/lorecrafting/lokacore/blob/63f22dbfc12e653407b7594f0b8cb61ccff00aef/docs/WORKFLOW.md) as a role pattern,
+not as a dependency on its agent files or model choices. For a PR-sized change:
+
+1. **Plan and brief.** The coordinator names one reviewable slice, its branch, governing
+   invariants and rules, scope, acceptance checks and any owner decision needed. Use
+   decisions already given; ask only when an unresolved owner choice controls the work.
+2. **Build and self-review.** The developer works on that branch, runs the applicable
+   checks, reviews the actual diff for correctness and realistic failures, then removes
+   unnecessary complexity. The PR cites its requirements, checks and limitations.
+3. **Verify and review.** The coordinator verifies the candidate commit and CI outcome.
+   A fresh reviewer who authored none of the change derives the requirements from the
+   cited sources before reading the diff, checks the behavior and tests, and reports
+   findings with a concrete failure scenario. A new guard needs a demonstrated red
+   control. Record the verdict and findings on the PR or in a linked review record.
+4. **Fix and re-review.** The same developer addresses each finding and reruns affected
+   checks. The reviewer checks the fixes and their direct callers. Escalate unresolved
+   substantive disagreements to the owner rather than looping indefinitely.
+5. **Handoff.** Report the final commit, review verdict, checks and open limits. Merge
+   or deploy only with the owner's authorization; a PR alone does not grant it.
+
+Use separate worktrees when roles or sessions run concurrently. Scale review to risk:
+documentation-only changes need a short source, duplication and link review; public interfaces,
+provenance and corpus gates need deeper independent review. Do not claim an independent
+review occurred when only the author checked the diff.
+
 ## Make the smallest complete change
 
 Keep runtime changes separate from documentation-only changes. Preserve source
@@ -48,6 +76,10 @@ reviewers recheck the candidate independently. This is targeted context, not a
 mandatory graph build for every task or permission to skip tests. CI publishes
 revision-labelled per-app reports; missing edges do not establish no impact.
 
+Use `ast-grep --lang elixir -p '<pattern>' --json` for syntax searches and native
+`mix xref callers <Module>` in each relevant app for compiler-resolved callers. Plain
+text search remains appropriate for prose, literals and configuration.
+
 ## Validate and report
 
 Use [the check appropriate to the subsystem](../TESTING.md). Never claim an unrun
@@ -57,7 +89,6 @@ static source inspection, model-free tests and live acceptance.
 Report changed paths, evidence, checks run, limitations and any deferred defects.
 Update the owning documentation with the change. Update a shared execution plan
 only when this task owns that plan section and concurrent work is reconciled.
-A PR proposes changes; it does not authorize merging or deployment.
 
 ## Entry-point compatibility
 
