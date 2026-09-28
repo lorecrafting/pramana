@@ -141,6 +141,8 @@ A timeout/error is **not** a miss, an absence claim or an empty successful arm.
 Only accepted `comments_on` / `subcommentary_of` edges from the frozen pilot scope may
 create the exegetical path. Topic similarity cannot consume an exegetical slot by pretending
 to be a relation.
+Separate `review_cases` in the scope artifact exercise the reader's `needs_review` warning;
+they do not create an exegetical path or authorize their target text for answer synthesis.
 
 The eventual scope materialization may be **narrower** than two hops. The task executor
 must obey the smaller of the scope allowance and this execution ceiling.

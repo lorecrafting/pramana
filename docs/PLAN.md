@@ -49,13 +49,15 @@ reconcile it with current code before dispatching work from it.
   that local T0262 contained an eight-character stub despite its locked source XML.
   A targeted bake restored its 92,287-character body; full verification of all 4,263
   CBETA texts and 10,788,972 segments and corpus integrity over all 17,281 texts then
-  passed. The old release is stale; complete the current-bake derivation receipts,
-  stamp a new release and review its exact scope under [#63](https://github.com/lorecrafting/pramana/issues/63)
-  before any pilot-scope readiness claim. Quotation, title and shared-text receipts are
-  current on the repaired bake. The shared-text v3 receipt records 80 current proposals
+  passed. The repaired bake now has clean quotation, title, shared-text and commentary
+  alignment receipts in the local candidate DB. A new retrieval release was stamped there,
+  and its scope was materialized twice with identical content under
+  [#63](https://github.com/lorecrafting/pramana/issues/63);
+  the expanded works and rights still need review before any pilot-scope readiness claim.
+  The shared-text v3 receipt records 80 current proposals
   plus 15 older links explicitly retained as `needs_review`; one current proposal is also
-  flagged. These links remain in candidate scope with a visible warning. Complete
-  commentary alignment, then review the exact expanded scope and rights dispositions.
+  flagged. The v4 scope keeps three flagged links from included commentaries as separate
+  reader review cases without adding their targets to the answer path.
   Source-link verdicts can follow; report pilot cases using flagged links separately.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
   hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live

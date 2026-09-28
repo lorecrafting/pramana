@@ -25,6 +25,8 @@ The materializer uses:
 - only non-model assertion methods: catalogue, manifest, title_match, lemma_match,
   shared_text;
 - retain assertions marked `needs_review` in traversal and identify them in the artifact;
+- record flagged links from included works to other CBETA Taishō works as separate reader
+  review-experience cases when those links are not in the admitted traversal;
 - only CBETA / Taishō (cbeta.T) works in the first pilot scope.
 
 An llm work-relation assertion cannot put a work into pilot scope. Relation semantics are
@@ -131,6 +133,14 @@ review status and reason. `needs_review` links still expand scope; the artifact 
 separately. The label asks for source and edition review and never asserts that a link is
 false or already verified.
 
+Some flagged links point from an included commentary to a root outside the 14-seed
+neighborhood. The artifact records those as `review_cases` with the source and target IDs,
+target metadata, assertion evidence and warning. They let the reader pilot exercise the
+warning without changing the demand seeds or silently adding an answer path. Review cases
+do **not** expand `works`, create an admitted relation, or supply answer synthesis. At least
+one admitted flagged assertion or separate review case is required for this pilot contract.
+Reader display of a review-case target still needs rights review.
+
 Works outside CBETA/Taishō, model-only relation assertions, and role-incoherent relation
 rows are excluded and counted rather than silently disappearing.
 
@@ -148,9 +158,10 @@ A zero means "the accepted work relation has no current-bake passage alignment,"
 
 ## Deterministic artifact
 
-The saved schema is pramana-pilot-scope/v3. Version 3 binds each relation assertion's
-review status and reason and counts the admitted assertions needing review. Older artifacts
-are not silently reinterpreted.
+The saved schema is pramana-pilot-scope/v4. Version 4 adds separate review-experience cases
+and counts them apart from admitted `needs_review` relation assertions. The case evidence
+and target metadata are bound to the scope hash and input digests. Older artifacts are not
+silently reinterpreted.
 
 It contains:
 
@@ -160,6 +171,7 @@ It contains:
 - combined seed list;
 - every expanded work with role/source/hop;
 - admitted relation edges/assertions;
+- separate flagged reader review cases, if their targets are outside the admitted path;
 - per-edge alignment coverage;
 - evaluation denominators;
 - input graph digests; and
@@ -190,9 +202,11 @@ A later review may change pilot_scope to ready only when it has:
 2. a live materializer output generated against that release with no drift;
 3. reviewed top-ten demand rows and ranking denominators;
 4. all four verified Āgamas;
-5. complete expanded-work and relation lists, including visible `needs_review` assertions;
+5. complete expanded-work and relation lists, including visible `needs_review` assertions
+   and the separate review-experience cases;
 6. passage-alignment coverage;
-7. rights review covering **every expanded work**, not only the seeds; source-link verdicts
+7. rights review covering **every expanded work and review-case target**, not only the seeds;
+   source-link verdicts
    may remain open for assertions visibly marked `needs_review`, and their pilot cases must
    be reported separately from unflagged-link cases;
 8. `mix pramana.pilot.derivations --bake-id <source-bake-id>` passes using current,
@@ -210,6 +224,7 @@ JSON is not enough.
 
 ## Current preflight state
 
-**Blocked.** The materializer and validator are implemented, but the repaired candidate
-has no accepted release or reviewed live-corpus artifact. A queryable database does not
-establish the required derivation receipts or stable scope evidence.
+**Blocked.** The local repaired candidate has a newly stamped release, clean derivation
+receipts and two byte-identical v4 materializations, but no reviewed and accepted scope
+artifact. Expanded works, review-case targets and their rights still need review. A
+queryable database and a passing structural validator do not complete that review.
