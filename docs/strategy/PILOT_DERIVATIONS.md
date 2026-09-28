@@ -22,12 +22,13 @@ A receipt is `complete` only when all of these are true at the end of the run:
 
 The last condition is intentionally stricter than "the command exited successfully."
 Title/shared-text relations and commentary alignments use idempotent row/pair upserts, not
-whole-table replacement. An unflagged stale row from an older or narrower rule therefore
-leaves a `partial` receipt. Shared-text rows explicitly marked `needs_review` may be retained
-as separate candidates: the producer counts them in its expected output, binds their
-identity and warning to the receipt, and reports the retained count. This records intentional
-inclusion, **not** that the current rule rediscovered or verified those links. Nothing is
-deleted just to make the receipt pass.
+whole-table replacement. An unflagged stale row from an older or narrower rule without an
+operator-supported disposition therefore leaves a `partial` receipt. Shared-text rows marked
+`needs_review` and historical rows with an operator-supported disposition may be retained:
+the producer counts them in its expected output and binds their assertion status and review
+evidence to the receipt. This records intentional inclusion, **not** that the current rule
+rediscovered those links or that source rights are cleared. Nothing is deleted just to make
+the receipt pass.
 
 Matching start/end input digests do not prove that no concurrent writer changed and restored
 an input mid-run. Pilot acceptance therefore retains its separate quiesced stable-state
