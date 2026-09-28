@@ -6,9 +6,9 @@ not a requirement that every reader model use the same provider.
 
 ## What is implemented
 
-[The embedding modules](../apps/pramana/lib/pramana/embed) own local serving and
-transfer. [Chunk vectors](../apps/pramana/lib/pramana/corpus/schemas.ex) are separate
-from source segments and chunks. The [hybrid retriever](../apps/pramana/lib/pramana/retrieval/hybrid.ex)
+[The embedding modules](../lib/pramana/embed) own local serving and
+transfer. [Chunk vectors](../lib/pramana/corpus/schemas.ex) are separate
+from source segments and chunks. The [hybrid retriever](../lib/pramana/retrieval/hybrid.ex)
 fuses lexical and semantic results and can rerank using stored renderings. It reports
 fallbacks; a requested semantic path is not proof that one ran.
 

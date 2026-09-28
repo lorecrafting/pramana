@@ -1,8 +1,8 @@
 # MCP interface
 
 Read-only research tools over the Pramāṇa domain. Registration lives in
-[server.ex](../apps/pramana_web/lib/pramana_web/mcp/server.ex); parameter schemas
-live in the [tool modules](../apps/pramana_web/lib/pramana_web/mcp/tools).
+[server.ex](../lib/pramana_web/mcp/server.ex); parameter schemas
+live in the [tool modules](../lib/pramana_web/mcp/tools).
 Use discovery for exact schemas rather than treating prose examples as exhaustive.
 
 ## Tools
@@ -57,7 +57,7 @@ alignment evidence; absence of an alignment does not refute the work-level relat
 
 ## Honesty fields and replay
 
-[Reply](../apps/pramana_web/lib/pramana_web/mcp/reply.ex) attaches `bake_id`,
+[Reply](../lib/pramana_web/mcp/reply.ex) attaches `bake_id`,
 `release_id` and `replay: {tool, arguments}` to both successful and error JSON replies
 through one shared helper. Both identity keys are present even when their values are
 null: no recorded bake means `bake_id: null`, and no recorded release means
@@ -78,7 +78,7 @@ promise of the identical answer after code, defaults or data have changed.
 ## Replay argument contract
 
 Both `verify_report` and the reader's `/check` use
-[ReplayExecutor](../apps/pramana_web/lib/pramana_web/mcp/replay_executor.ex). Before
+[ReplayExecutor](../lib/pramana_web/mcp/replay_executor.ex). Before
 invoking an allowlisted tool, it checks argument names against that component's schema
 and applies its generated `mcp_schema/1` validator. A misspelled or unsupported filter
 must not be silently removed and then yield a pass for an unfiltered query. Knowing an
@@ -136,7 +136,7 @@ Older records omitting `release_id` (or using null) keep their existing behavior
 values, not historical retrieval equivalence. Historical nonempty release ids are opaque,
 not upgraded to v2. An invalid non-null recorded release makes the block malformed.
 A matching identity still does not address all the state limitations above. Inspect the
-[report implementation](../apps/pramana/lib/pramana/report.ex).
+[report implementation](../lib/pramana/report.ex).
 
 A failure to find wording in the loaded corpus is not proof of fabrication. A genuine
 quotation is not proof of the attached interpretation. Generated text is not canonical
@@ -150,7 +150,7 @@ execution budget, starting when the component is invoked. Trusted application
 configuration may shorten it:
 
 ```elixir
-config :pramana_web, PramanaWeb.MCP.Tools.VerifyReport, timeout_ms: 15_000
+config :pramana, PramanaWeb.MCP.Tools.VerifyReport, timeout_ms: 15_000
 ```
 
 The value must be an integer from 1 through 25,000. Unknown options and invalid
@@ -188,7 +188,7 @@ provenance/replay fields remain. Inspect the MCP error flag first, then `executi
 the evidence fields when present. Do not retry automatically or relabel an interrupted
 check as a refutation.
 
-The shared [check coordinator](../apps/pramana_web/lib/pramana_web/check_run.ex)
+The shared [check coordinator](../lib/pramana_web/check_run.ex)
 observes its worker's termination before returning and releases admission only after that
 cleanup. It cooperates with Anubis's existing cancellation and session teardown; explicit
 protocol cancellation may return Anubis's cancellation error instead of a completed tool
@@ -201,7 +201,7 @@ provenance lookups after execution, network delivery or another tool's execution
 The shared admission pool bounds **report checks on one BEAM node only**; it does not
 bound other MCP tools, session queues, another node or end-to-end latency. Killing a
 BEAM worker cannot guarantee recall of already-dispatched database/native/model work.
-These limits also apply to stdio; `mix pramana.mcp.stdio` starts the `pramana_web`
+These limits also apply to stdio; `mix pramana.mcp.stdio` starts the `pramana`
 application before the stdio transport, so it uses the same node-local admission service.
 Transport disconnect is not a new cancellation promise. No database writes, migrations,
 automatic retries or historical replay snapshots are introduced. Rollback removes the

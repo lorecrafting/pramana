@@ -1,9 +1,9 @@
 # Pramāṇa Chinese-first pilot preflight
 
 **Status:** design/preflight only; no pilot execution or provider call is authorized.
-**Decision update:** 2026-09-17, superseding the initial four-Nikāya D2 pilot choice.
+**Decision updates:** 2026-09-17 Chinese-first D2; 2026-09-27 Foundry gate retired.
 **Base:** `6887cc15457a0bcb555914874173b6a35488da3f`
-**Depends on:** [pilot charter](PILOT_CHARTER.md), Foundry G0/FR-22 ([lorecrafting/foundry](https://github.com/lorecrafting/foundry), see [where Foundry lives](../PRODUCT_STRATEGY.md#dependency-on-foundry)), reviewed source/lexicon
+**Depends on:** [pilot charter](PILOT_CHARTER.md), reviewed source/lexicon
 rights, evaluator availability and separately authorized inference.
 
 ## Why the pilot is now Chinese-first
@@ -402,27 +402,26 @@ Actual participant execution remains blocked by every other mandatory preflight 
 
 The pilot is not ready until every mandatory condition has explicit evidence:
 
-1. **Foundry G0 / FR-22 complete** in [lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md) for implementation execution.
-2. **Exact pilot release/scope pinned**, including seed work IDs and relation expansion.
-3. **CBETA rights matrix reviewed** for every intended operation.
-4. **Lexicon rights matrix reviewed** for each glossary used.
-5. **Inference route and spending authorized** separately.
-6. **Per-task execution bounds frozen**: maximum deterministic/model query candidates,
+1. **Exact pilot release/scope pinned**, including seed work IDs and relation expansion.
+2. **CBETA rights matrix reviewed** for every intended operation.
+3. **Lexicon rights matrix reviewed** for each glossary used.
+4. **Inference route and spending authorized** separately.
+5. **Per-task execution bounds frozen**: maximum deterministic/model query candidates,
    model calls, passages and source bytes/tokens translated, timeout, retry count and
    authorized spend. Hidden retries are forbidden and duplicate source hashes must not be
    translated repeatedly within one task.
-7. **Provider data-use terms reviewed** for sending selected source/glossary text **and**
+6. **Provider data-use terms reviewed** for sending selected source/glossary text **and**
    participant question/task content, with route-specific participant-transfer consent
    where an external provider receives that content.
-8. **Bilingual evaluator coverage identified**.
-9. **Participant protocol/consent/retention procedure fixed** in
+7. **Bilingual evaluator coverage identified**.
+8. **Participant protocol/consent/retention procedure fixed** in
    [PILOT_PARTICIPANTS](PILOT_PARTICIPANTS.md), including current-alternative intake,
    denominator rules and withdrawal behavior.
-10. **Retrieval baseline fixed** against the accepted release and frozen held-out thresholds.
-11. **Translation/query evaluation rubric frozen**, including text-role-separated
+9. **Retrieval baseline fixed** against the accepted release and frozen held-out thresholds.
+10. **Translation/query evaluation rubric frozen**, including text-role-separated
     translation reporting.
-12. **Critical failure taxonomy frozen**.
-13. **No known unresolved critical trust defect** in rehearsal cases.
+11. **Critical failure taxonomy frozen**.
+12. **No known unresolved critical trust defect** in rehearsal cases.
 
 A blocked gate is a valid preflight result. It must not be rewritten to `ready` merely
 because implementation could technically start.
@@ -430,7 +429,8 @@ because implementation could technically start.
 ## Readiness manifest and commands
 
 The current machine-readable record is
-[`pilot_preflight.json`](pilot_preflight.json). It is intentionally blocked.
+[`pilot_preflight.json`](pilot_preflight.json). Schema v2 retires the former
+Foundry gate; the remaining Pramāṇa gates keep it intentionally blocked.
 
 From the Git root:
 
@@ -455,9 +455,11 @@ is substantively correct. Those remain human/reviewed evidence. The command prev
 missing/stale bookkeeping from being mistaken for readiness; it does not manufacture the
 underlying decisions.
 
-## Post-G0 implementation sequence
+## Implementation sequence
 
-Once the readiness gate is genuinely satisfied:
+After the relevant operation-level permissions and implementation admission are
+recorded, build in this order. Participant tasks still require **every** mandatory
+preflight gate to be ready:
 
 1. implement a pure, inspectable query-expansion plan object;
 2. run existing retrieval arms without synthesis and evaluate;

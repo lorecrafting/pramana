@@ -1,6 +1,6 @@
 Code.require_file(
   Path.expand(
-    "../apps/pramana/lib/pramana/pilot/scope_artifact.ex",
+    "../lib/pramana/pilot/scope_artifact.ex",
     __DIR__
   )
 )

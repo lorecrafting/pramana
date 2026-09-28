@@ -7,9 +7,9 @@ This document separates that implementation from the larger
 
 ## What the pool stores
 
-[The schema](../apps/pramana/lib/pramana/corpus/schemas.ex) records `anchor_urn`, language,
+[The schema](../lib/pramana/corpus/schemas.ex) records `anchor_urn`, language,
 translator identity, tier, method, text/hash, model/prompt/glossary metadata, review
-state, license fields and attribution. [Translations](../apps/pramana/lib/pramana/translations.ex)
+state, license fields and attribution. [Translations](../lib/pramana/translations.ex)
 owns the validated selection policy and presentation.
 
 Policies include language, translator/model, tier preference, comparison mode,
@@ -37,9 +37,9 @@ Null review/quality fields do not count as successful quality checks.
 
 ## Batch export and import
 
-The [export task](../apps/pramana/lib/mix/tasks/pramana.translate.export.ex),
-[import task](../apps/pramana/lib/mix/tasks/pramana.translate.import.ex) and
-[transfer implementation](../apps/pramana/lib/pramana/translate/transfer.ex) define
+The [export task](../lib/mix/tasks/pramana.translate.export.ex),
+[import task](../lib/mix/tasks/pramana.translate.import.ex) and
+[transfer implementation](../lib/pramana/translate/transfer.ex) define
 the supported round trip. Review flags with `mix help` before running a paid batch.
 
 **The existence of this round trip is not provider or source-rights authorization.** The

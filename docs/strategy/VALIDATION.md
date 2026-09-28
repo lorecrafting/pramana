@@ -6,7 +6,7 @@ were produced by this rewrite.
 
 ## Scorecard, not one ambiguous efficiency number
 
-Foundry's scorecard and portability validation are in [lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/VALIDATION.md).
+Foundry's former scorecard is historical and does not gate Pramāṇa's pilot.
 
 ### Pramāṇa
 

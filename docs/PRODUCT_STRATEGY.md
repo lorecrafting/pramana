@@ -1,7 +1,7 @@
 # Product strategy
 
-**Status:** proposed strategic baseline for operator review, 2026-09-15.
-**Horizon:** product work after the Foundry repair backlog is accepted.
+**Status:** proposed strategic baseline from 2026-09-15; the Chinese pilot charter is operator-approved.
+**Horizon:** Pramāṇa product work, governed by its own decisions and pilot preflight.
 **Source baseline:** `713e8522e7028b767535695ffd6d1c4be1c89e29`.
 
 This replaces the appended research notebook with a decision-oriented strategy. It
@@ -16,9 +16,10 @@ admit these strategic initiatives. V2 content identity is implemented, not immut
 
 **Build around evidence, not a universal agent platform.**
 Pramāṇa helps people find, inspect and responsibly reuse Buddhist textual evidence.
-This strategy was written jointly with Foundry's, which now lives in
-[lorecrafting/foundry](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md); the
-[dependency below](#dependency-on-foundry) is the part Pramāṇa still relies on.
+On 2026-09-27 the operator retired the Foundry dependency. The earlier joint plan is
+historical. Pramāṇa has no Foundry runtime,
+implementation or readiness dependency. Development follows the shared
+[repository workflow](agents/WORKFLOW.md) through agent instructions and review.
 
 The scarce resource is trustworthy progress per unit of human attention. More
 corpus rows, agents, generated code or architectural layers are not progress unless
@@ -38,8 +39,9 @@ initial D1–D7 choices are now resolved by the
 question-answering job, a bounded Chinese commentary-rich user pilot with bilingual
 retrieval/on-demand reading translation, preregistered thresholds, rights/privacy rules
 and no exact-replay promise.
-Implementation remains gated by G0 and source-specific rights clearance; the charter does
-not authorize provider spend or deployment.
+Implementation admission follows G1 and the relevant Pramāṇa source-rights, scope,
+evaluator and inference conditions. Participant work requires full preflight readiness;
+the charter does not authorize provider spend or deployment.
 
 A scoped pilot narrows the new experience, not the stored corpus or existing users' access
 to supported tools.
@@ -61,18 +63,16 @@ of an automatic moat or recursive model improvement.
 
 | Horizon | Question to resolve | Gate |
 |---|---|---|
-| H0 — repair acceptance | Can Foundry execute the agreed lifecycle safely, including recovery and authorized kernel repair? | Existing FR-22 evidence; no replacement checklist |
 | H1 — choose and measure | Which research job and source scope warrant the next investment? What actually consumes operator time? | G1: pilot charter and baseline approved |
 | H2 — complete one workflow | Can intended users independently find, inspect and reuse adequate evidence? | G2: observed task success and trust checks |
-| H3 — repeat and improve | Do users return, and do selected Foundry improvements save net effort? | G3: repeat-use and engineering evidence |
+| H3 — repeat and improve | Do users return, and do workflow improvements save net effort? | G3: repeat-use and engineering evidence |
 | H4 — expand selectively | Which adjacent market or capability has earned investment? | G4: separate expansion decision for each product |
 
 [Strategic roadmap](strategy/ROADMAP.md) defines gates and candidate initiatives.
-These H/G identifiers are not the existing engineering phases or FR ticket numbers.
-Foundry product discovery need not wait for Pramāṇa's commercial success; any second-
-repository pilot does wait for repair acceptance and an explicit operator allocation.
+These H/G identifiers are not the existing engineering phases. The former H0/G0
+Foundry repair gate is retired for Pramāṇa; H1/G1 is the first active product gate.
 
-## Non-goals for the first post-repair release
+## Non-goals for the first pilot
 
 Do not pursue a universal Buddhist authority, an automatic doctrinal truth score,
 a translation-model training program, a full-corpus OCR expansion, a generalized
@@ -86,26 +86,24 @@ tool count. Existing verified functionality is not removed just to narrow a pilo
 | Need | Owner |
 |---|---|
 | Users, initial scope, UX, source and translation policy | [Pramāṇa](strategy/PRAMANA.md) |
-| Repair handoff, autonomy, memory, providers and portability | [Foundry product strategy](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md) (lorecrafting/foundry) |
+| Agent contribution process | [Repository workflow](agents/WORKFLOW.md) |
 | Horizons, dependencies, candidate initiatives and expansion gates | [Roadmap](strategy/ROADMAP.md) |
 | Metrics, pilot design, experiment standards and sustainability | [Validation](strategy/VALIDATION.md) |
 | Open choices and conversion into formal plans and tickets | [Decision and planning process](strategy/DECISIONS.md) |
 | External sources, adoption policy and verification limits | [Research register](strategy/RESEARCH.md) |
 | Where every original section went; contradictions resolved | [Reconciliation](strategy/RECONCILIATION.md) |
 
-## Dependency on Foundry
+## Independent workflow
 
-Pramāṇa's pilot implementation waits on Foundry's G0: acceptance of
-[FR-22](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md#fr-22--prove-full-lifecycle-and-reconcile-operating-docs)
-in [lorecrafting/foundry](https://github.com/lorecrafting/foundry). That is the `foundry_g0` gate in the
-[pilot preflight](strategy/PILOT_PREFLIGHT.md). Check its status in that repository;
-this one does not mirror it. Pramāṇa must still build and run without Foundry, and
-Foundry's authority store must never become Pramāṇa's database.
+Pramāṇa's [pilot preflight](strategy/PILOT_PREFLIGHT.md) contains only Pramāṇa
+conditions. Agents use [AGENTS.md](../AGENTS.md) and the shared
+[workflow](agents/WORKFLOW.md); no Foundry service or repair milestone is required.
+The historical Foundry plan remains in Git for context, not as an execution gate.
 
 ## How this becomes an execution plan
 
 The operator reviews the choices and resolves the blocking decisions in the
-[decision register](strategy/DECISIONS.md). After repair acceptance, PM rechecks
+[decision register](strategy/DECISIONS.md). Before admitting work, PM rechecks
 current source, open work and evidence, then elaborates only the next eligible
 initiative. Approved changes update PLAN and the formal ROADMAP together. Research
 notes and this strategy do not dispatch work, change budgets or authorize merges.

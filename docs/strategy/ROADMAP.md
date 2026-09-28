@@ -5,35 +5,22 @@
 
 ## How to read this roadmap
 
-H0–H4 are strategic horizons. G0–G4 are decision gates, not replacements for existing
-engineering phases or FR acceptance. Initiative IDs below are stable planning
+H1–H4 are strategic horizons. G1–G4 are decision gates, not replacements for existing
+engineering phases. The former Foundry H0/G0 gate is retired for Pramāṇa.
+Initiative IDs below are stable planning
 handles; they are **not tickets**. Dates, staffing, estimates and budget grants are
 intentionally uncommitted. Before implementation, reconcile each candidate against
-current PLAN, repair evidence, open PRs and source.
-
-## H0 / G0 — clear the repair boundary
-
-**Owner:** the existing repair owner/operator. **Entry:** current repair process.
-**Exit:** FR-22's exact lifecycle and closure evidence, with mandatory obligations
-met and remaining unsupported scope explicit. Any waiver requires the governing
-process, not this strategy. A component test, design approval or “all green” board
-cannot substitute. [FR-22](https://github.com/lorecrafting/foundry/blob/main/docs/REPAIR-PLAN.md#fr-22--prove-full-lifecycle-and-reconcile-operating-docs)
-owns the scenario details.
-
-Strategy writing and non-operational discovery may proceed now. Do not use these
-initiatives to dispatch product builds, alter live policy or divert active repair
-ownership before this gate. Capture a fresh post-repair operating/source baseline
-rather than assuming today's documented state is the eventual implementation.
+current PLAN, open PRs, the live source and Pramāṇa's preflight evidence.
 
 ## H1 / G1 — choose a customer task and establish baselines
 
-**Work:** I-P1 plus baseline measurement for I-F1. **Dependencies:** G0 for execution;
-no new infrastructure required for interviews or planning.
+**Work:** I-P1 and its baseline measurement. No new infrastructure is required
+for interviews or planning.
 
 [The initial pilot charter](PILOT_CHARTER.md) now resolves D1–D7 before results are
 seen: audience, recurring task, bounded Chinese commentary-rich user scope, bilingual retrieval
 and reading-translation boundaries, rights gate, evaluation thresholds, privacy/export
-behavior, capacity and replay promise. The charter authorizes no post-G0 implementation and no new cash spend.
+behavior, capacity and replay promise. The charter authorizes no new cash spend.
 
 Before execution, recheck the live source/corpus baseline, complete the charter/preflight operation-specific rights matrix for the selected CBETA
 source, lexicons and model-processing route, identify the qualified Buddhist-Chinese
@@ -41,7 +28,7 @@ evaluators and follow the frozen [participant protocol](PILOT_PARTICIPANTS.md), 
 each participant's current-alternative intake. Actual retrieval limitations and operator time must be
 measured locally; public benchmarks do not substitute.
 
-**Exit:** after G0, the operator confirms that the charter's rights/evaluator prerequisites
+**Exit:** the operator confirms that the charter's rights/evaluator prerequisites
 are satisfied and admits the bounded pilot implementation. **Stop/reframe:** no recurring
 need, no usable rights-cleared source access, no evaluator, or the proposed advantage
 disappears in comparison with existing tools. Do not solve weak demand by adding more
@@ -49,8 +36,7 @@ models or corpora.
 
 ## H2 / G2 — deliver one complete evidence workflow
 
-**Work:** I-P2 and I-P3 together as a thin vertical slice; a bounded I-F1 trial may
-run alongside it. **Dependency:** G1.
+**Work:** I-P2 and I-P3 together as a thin vertical slice. **Dependency:** G1.
 
 Use the existing reader/MCP. Deliver scope selection, source inspection, honest
 verification states and reusable evidence export. Add narrow synthesis only after
@@ -67,13 +53,11 @@ or cannot distinguish source from generated material.
 
 ## H3 / G3 — demonstrate repeat value and selective compounding
 
-**Work:** choose I-P4 or I-P5 based on observed friction, not both by default. Run
-I-F2 only against a demonstrated engineering bottleneck. I-F3 may begin as a bounded
-independent product experiment once G0 is met and an operator allocation is recorded;
-it does not require commercial success for Pramāṇa.
+**Work:** choose I-P4 or I-P5 based on observed friction, not both by default.
+Try a workflow improvement only against a demonstrated engineering bottleneck.
 
 **Exit:** users voluntarily return for new natural research tasks, reuse evidence
-correctly, and report a meaningful advantage over their alternatives. Foundry
+correctly, and report a meaningful advantage over their alternatives. Workflow
 improvements show net effort savings within matched task classes without worsening
 quality or authority controls. Record actual failures, abandonment and maintenance.
 **Stop:** another feature does not resolve the documented reason people fail to return.
@@ -81,9 +65,8 @@ quality or authority controls. Record actual failures, abandonment and maintenan
 ## H4 / G4 — expand by separate decisions
 
 Pramāṇa may pursue I-P6 (cross-canon/deeper coverage) or I-P7 (collaboration) only
-when demand, rights, data quality and evaluation justify it. Foundry may pursue
-packaging beyond I-F3 or the I-F4 backend migration independently when their own
-evidence is sufficient. Never bundle all expansions into one release obligation.
+when demand, rights, data quality and evaluation justify it. Never bundle all
+expansions into one release obligation.
 
 Each expansion requires an owner, beneficiary, measured baseline, bounded pilot,
 permission/security review, operating cost and stop/rollback rule. Multi-user work
@@ -102,7 +85,9 @@ scholars, practitioners/study leaders and ordinary readers in one bounded Chines
 that includes actual treatise/commentary/subcommentary neighborhoods.
 **Evidence:** consented task records, failed searches, source-specific rights clearance,
 qualified evaluator review, segmented user outcomes and the charter's predeclared
-thresholds. **Gate:** G1 after G0 permits execution. **Excludes:** declaring product-market
+thresholds. **Gate:** G1 admits bounded implementation after the relevant rights,
+scope and evaluator conditions clear; participant tasks require full preflight.
+**Excludes:** declaring product-market
 fit from interviews, prototype enthusiasm or a corpus count.
 
 ### I-P2 — evidence and trust contract
@@ -136,7 +121,7 @@ coverage. **Excludes:** a new graph database or role-based inference of historic
 **Evidence:** access isolation, export/deletion behavior, cited-state drift warning,
 and repeat-use improvement. **Dependencies:** G2 and approved privacy/retention
 contract. **Excludes:** storing personal notes in the canonical source layer or
-sharing a Foundry engineering-memory backend.
+sharing them with an agent workflow.
 
 ### I-P6 — evidence-led retrieval and coverage expansion
 
@@ -155,16 +140,11 @@ review attribution, private-input protections and repeat collaborative use.
 **Dependencies:** G3, privacy controls and explicit partner requirements.
 **Excludes:** assuming 84000 or any institution is a partner or endorses the system.
 
-### I-F1 – I-F5 — Foundry initiatives
-
-Foundry's initiatives, and its "compose before build" rule, moved with it to
-[its product strategy](https://github.com/lorecrafting/foundry/blob/main/docs/strategy/PRODUCT.md#candidate-initiatives). Their IDs are unchanged.
-
 ## Prioritization and formal-roadmap handoff
 
 Mandatory safety, fidelity, access and acceptance defects take precedence. Among
 optional candidates, prefer the smallest work that resolves a measured bottleneck
-in the chosen user job or Foundry's delivery. Compare expected benefit, confidence,
+in the chosen user job. Compare expected benefit, confidence,
 review/support effort, dependencies and reversibility; do not invent numeric RICE
 scores without inputs. Limit work in progress to the operator's actual capacity.
 

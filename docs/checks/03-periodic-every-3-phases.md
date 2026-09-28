@@ -5,7 +5,7 @@
 
 ## Periodic (every ~3 phases)
 
-- `mix dialyzer` across the whole umbrella with no ignore file growth. **Run it more
+- `mix dialyzer` across the whole app with no ignore file growth. **Run it more
   often than this schedule says.** It was recorded as "0 errors, and no ignore file
   exists — none has ever been needed" at the phase-4 gate and was found at **9** on
   2026-08-22, all predating that session. Seven were one cause — three mix tasks built a

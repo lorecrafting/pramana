@@ -1,22 +1,24 @@
 # Repository map
 
-The repository root is the Pramāṇa Mix umbrella. Run Mix, asset, native and corpus
+The repository root is the Pramāṇa Mix app. Run Mix, asset, native and corpus
 commands here. [Documentation](README.md).
 
 | Location | Role |
 |---|---|
-| `mix.exs`, `mix.lock`, `config/`, `rel/` | Umbrella build, dependencies, configuration and release |
-| `apps/pramana/` | Corpus domain, acquisition, citation, provenance, retrieval and evaluation |
-| `apps/pramana_web/` | Phoenix reader and read-only MCP; depends on the domain |
-| `apps/pramana_native/` | Rustler NIF for CJK segmentation |
+| `mix.exs`, `mix.lock`, `config/`, `rel/` | Single application build, dependencies, configuration and release |
+| `lib/pramana/` | Corpus domain, acquisition, citation, provenance, retrieval and evaluation |
+| `lib/pramana_web/` | Phoenix reader and read-only MCP; calls the domain |
+| `lib/pramana_native.ex`, `native/pramana_native/` | Rustler NIF for CJK segmentation |
 | `native/quotations/` | Separate Rust quotation scanner; separate Cargo manifest |
-| `priv/` | Native/model companions and project data assets; not an app's `priv/` |
+| `assets/`, `priv/static/` | Phoenix assets and served files |
+| `priv/` | Migrations, source assets, native/model companions and project data |
 | `sources/`, `sources.lock.json`, `evals/` | Provenance metadata and active evaluation inputs |
 | `bin/` | `pramana-mcp` (used by `.mcp.json`), Modal/tranche wrappers and dependency-free repository checks |
 | `ci/`, `Dockerfile`, `.github/workflows/` | CI fixtures, runtime image and workflows |
-| `docs/`, `test/` | Documentation and repository-level checks run by `bin/check_docs.exs` |
+| `test/app/` | Application tests run by `mix test` |
+| `docs/`, `test/docs/` | Documentation and repository-level checks run by `bin/check_docs.exs` |
 
-The three child Mix projects use relative `../../` build, config, deps and lockfile paths.
+One supervision tree starts the corpus admission guard before the web endpoint.
 [Architecture](ARCHITECTURE.md).
 
 ## Foundry: moved out

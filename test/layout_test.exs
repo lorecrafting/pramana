@@ -6,47 +6,28 @@ defmodule Repository.LayoutTest do
 
   @root Path.expand("..", __DIR__)
 
-  test "the repository root is the Pramāṇa umbrella and Foundry has moved out" do
+  test "the repository root is one Pramāṇa Mix app and Foundry has moved out" do
     for file <- ["mix.exs", "mix.lock", "config/config.exs"] do
       assert File.regular?(Path.join(@root, file))
     end
 
-    umbrella = File.read!(Path.join(@root, "mix.exs"))
-    assert umbrella =~ ~s(apps_path: "apps")
+    project = File.read!(Path.join(@root, "mix.exs"))
+    assert project =~ "app: :pramana"
+    refute project =~ "apps_path:"
 
     for dir <- ["foundry", "pramana"] do
       assert {"", 0} == System.cmd("git", ["ls-files", "--", dir], cd: @root)
     end
 
-    refute File.exists?(Path.join(@root, "apps/foundry"))
-  end
-
-  test "each Pramana child resolves its build configuration within its own product" do
-    for app <- ~w(pramana pramana_web pramana_native) do
-      child = Path.join([@root, "apps", app])
-      text = File.read!(Path.join(child, "mix.exs"))
-
-      for {key, relative} <- [
-            {"build_path", "../../_build"},
-            {"deps_path", "../../deps"},
-            {"config_path", "../../config/config.exs"},
-            {"lockfile", "../../mix.lock"}
-          ] do
-        assert text =~ ~s(#{key}: "#{relative}")
-        resolved = Path.expand(relative, child)
-
-        assert Path.dirname(resolved) == @root or
-                 resolved == Path.join(@root, "config/config.exs")
-      end
-    end
+    assert {"", 0} == System.cmd("git", ["ls-files", "--", "apps"], cd: @root)
   end
 
   test "source inputs and companion manifests remain under the product root" do
     for file <- [
           "sources.lock.json",
           "evals/baseline.json",
-          "apps/pramana_native/native/pramana_native/Cargo.toml",
-          "apps/pramana_native/native/pramana_native/Cargo.lock",
+          "native/pramana_native/Cargo.toml",
+          "native/pramana_native/Cargo.lock",
           "native/quotations/Cargo.toml",
           "native/quotations/Cargo.lock"
         ] do
@@ -62,17 +43,17 @@ defmodule Repository.LayoutTest do
     assert Path.join(@root, "docs/STATUS.md") in paths
     assert Path.join(@root, "docs/PLAN.md") in paths
     assert Sync.documents([@root, @root]) == paths
-    assert Sync.documents(Path.join(@root, "apps")) == []
+    assert Sync.documents(Path.join(@root, "lib")) == []
   end
 
-  test "Git root stays the same from an application directory" do
-    for dir <- [@root, Path.join(@root, "apps/pramana")] do
+  test "Git root stays the same from a source directory" do
+    for dir <- [@root, Path.join(@root, "lib/pramana")] do
       {out, 0} = System.cmd("git", ["rev-parse", "--show-toplevel"], cd: dir)
       assert String.trim(out) == @root
     end
   end
 
-  test "umbrella test entry prepares the database before recursive application startup" do
+  test "test entry prepares the database before application startup" do
     text = File.read!(Path.join(@root, "mix.exs"))
     ast = Code.string_to_quoted!(text)
 
@@ -94,7 +75,7 @@ defmodule Repository.LayoutTest do
     refute ci =~ "working-directory: pramana"
     assert ci =~ "\n            deps\n            _build\n"
     assert ci =~ "cargo audit --file native/quotations/Cargo.lock"
-    assert ci =~ "cargo audit --file apps/pramana_native/native/pramana_native/Cargo.lock"
+    assert ci =~ "cargo audit --file native/pramana_native/Cargo.lock"
     refute File.exists?(Path.join(@root, ".github/workflows/foundry-ci.yml"))
   end
 
@@ -123,7 +104,8 @@ defmodule Repository.LayoutTest do
     assert ci =~ "mix release --overwrite"
 
     refute container =~ ~s(- "**")
-    assert container =~ ~s(- "apps/**")
+    assert container =~ ~s(- "lib/**")
+    assert container =~ ~s(- "native/pramana_native/**")
     assert container =~ ~s(- "ci/release_smoke.py")
     assert container =~ ~s(- "ci/serving_privileges.exs")
     refute container =~ ~s(- "ci/**")

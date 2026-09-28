@@ -29,16 +29,30 @@ reconcile it with current code before dispatching work from it.
 - **Tengyur works with no title** (3,864 of 4,575 named, per the generated figures below).
 - **The Chinese pilot's human gates**: rights clearance, qualified evaluators, participant
   recruitment and D8, per the [pilot charter](strategy/PILOT_CHARTER.md) and
-  [preflight](strategy/PILOT_PREFLIGHT.md). Implementation also waits on
-  [Foundry's G0](PRODUCT_STRATEGY.md#dependency-on-foundry).
+  [preflight](strategy/PILOT_PREFLIGHT.md). G1 and the relevant Pramāṇa conditions
+  govern implementation; the retired Foundry G0 gate no longer blocks it.
 
 ### Engineering
 
-- **Restamp the release.** `mix pramana.doctor` reports the selected release STALE
-  (`identity_version` v1/coarse → v2) on 2026-09-24, so responses name a release that is not
-  the loaded one. `mix pramana.release.stamp`, then re-run the doctor.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
-  hybrid returns semantic neighbours for a doctrine no text discusses.
+  hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live
+  probe over 499 search gold cases found that suppressing semantic-only weak matches would
+  affect `abs-001` and `abs-002`, but no retrieval or topical case. `abs-002` checks origin,
+  not relevance, and its cited work X0967 currently has no composition-origin label, so
+  this does not establish safe refusal. Keep the warning; establish human-verified
+  answerable and unanswerable near-misses under the same filters before a suppression rule.
+- **Re-derive CBETA X origin labels; review Taishō exceptions.** The byline rule now
+  distinguishes a sole Japanese credit from mixed credits, leaving the latter's work-level
+  origin unknown. Some Japanese editors wrote prefaces indexed with Chinese-authored body
+  text (X0407, X0932), so assigning either origin to the whole work would mislabel passages.
+  A read-only 2026-09-27 counterfactual over the 1,230 loaded X works found 14 Japanese →
+  unknown labels on re-derivation; nine Japanese labels remain. The local corpus has
+  **not** been rewritten. Sole-Japanese compiler credits can also conceal Chinese source
+  passages (X1651); X1655 remains a clear Japanese-authored positive. Separately, 27 Taishō
+  bylines contain `日本` while their division
+  labels are Chinese; some credit editors, others authors. Review those work by work
+  before changing the Taishō table policy. X0967 contains 唱題 but its byline is only
+  `宋`, so its origin remains unknown and the historical `abs-002` source premise is false.
 - **`topical/chinese` and Tibetan recall.** [§ F](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#f-topicalchinese-is-still-0--now-measured-over-496-cases-rather-than-12) and
   [§ G](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#g-tibetan-recall--24-cases-unreachable); Tibetan misses are absent from 200 candidates, a recall problem.
 - **Public demo.** [§ E](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#e-public-demo--newly-unblocked); now bounded by the

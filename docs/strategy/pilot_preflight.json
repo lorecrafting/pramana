@@ -1,16 +1,8 @@
 {
-  "schema": "pramana-pilot-preflight/v1",
+  "schema": "pramana-pilot-preflight/v2",
   "pilot_id": "chinese-commentary-v1",
   "subject_revision": null,
   "gates": [
-    {
-      "id": "foundry_g0",
-      "state": "blocked",
-      "reason": "FR-22 lifecycle acceptance in lorecrafting/foundry (docs/REPAIR-PLAN.md) is not complete.",
-      "evidence": [
-        "docs/PRODUCT_STRATEGY.md#dependency-on-foundry"
-      ]
-    },
     {
       "id": "pilot_scope",
       "state": "blocked",

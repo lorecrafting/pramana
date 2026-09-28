@@ -93,9 +93,8 @@ Environment and tooling quirks. Each cost real time; recorded so they cost it on
 - **`mise trust` is path-keyed.** An early `mise install` silently no-op'd because the
   project config was untrusted, and the global config won. Renaming the project
   directory invalidated the trust again.
-- **In an umbrella, `File.cwd!()` is not the umbrella root** — mix runs each child app
-  from its own directory. `config :pramana, :project_root` is pinned at compile time
-  via `Path.expand("..", __DIR__)` instead.
+- **`File.cwd!()` depends on the caller's directory.** `config :pramana, :project_root`
+  is pinned at compile time via `Path.expand("..", __DIR__)` instead.
 - **CBETA keeps its apparatus in `<back>`**, not inline, keyed to `<anchor>` positions
   in the body. Assuming inline `<app>` yields empty lemmas.
 - **`<lb/>` also appears inside `<back>` lemmas** (which reproduce body text). Treating

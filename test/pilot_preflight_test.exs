@@ -62,6 +62,27 @@ defmodule Strategy.PilotPreflightTest do
     assert "execution_bounds" in ids
   end
 
+  test "pilot readiness has no external Foundry gate" do
+    manifest = Pramana.PilotPreflight.load_manifest!(@manifest)
+    ids = Enum.map(manifest["gates"], & &1["id"])
+
+    refute "foundry_g0" in ids
+
+    extra = %{
+      "id" => "foundry_g0",
+      "state" => "ready",
+      "reason" => nil,
+      "evidence" => ["docs/strategy/PILOT_PREFLIGHT.md"]
+    }
+
+    assert {:error, errors} =
+             manifest
+             |> Map.update!("gates", &[extra | &1])
+             |> Pramana.PilotPreflight.validate(@root)
+
+    assert "gate ids must match the complete mandatory gate set" in errors
+  end
+
   test "candidate revision must be available and ancestral to the evidence checkout" do
     revision = Pramana.PilotPreflight.git_revision!(@root)
 
@@ -144,6 +165,13 @@ defmodule Strategy.PilotPreflightTest do
 
   test "top-level schema and revision are closed and validated" do
     manifest = Pramana.PilotPreflight.load_manifest!(@manifest)
+
+    assert {:error, errors} =
+             manifest
+             |> Map.put("schema", "pramana-pilot-preflight/v1")
+             |> Pramana.PilotPreflight.validate(@root)
+
+    assert "schema must be pramana-pilot-preflight/v2" in errors
 
     assert {:error, errors} =
              manifest

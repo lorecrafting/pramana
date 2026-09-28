@@ -4,10 +4,10 @@ These are repository-derived instructions, not evidence that setup ran in this a
 
 ## Pramāṇa prerequisites
 
-Use [mise.toml](../mise.toml) for the exact Erlang/Elixir toolchain. The umbrella also
+Use [mise.toml](../mise.toml) for the exact Erlang/Elixir toolchain. The app also
 needs Rust for `pramana_native` and PostgreSQL with the `vector` and `pg_bigm`
 extension binaries installed on the **server**. `pg_bigm` is not `pg_trgm`.
-See [umbrella CI](../.github/workflows/ci.yml) for the currently exercised extension
+See [CI](../.github/workflows/ci.yml) for the currently exercised extension
 installation recipe; [Dockerfile](../Dockerfile) builds the application release,
 not the database server.
 
@@ -22,11 +22,11 @@ From the repository root:
 mise install
 mise exec -- mix deps.get
 mise exec -- mix compile
-(cd apps/pramana && mise exec -- mix ecto.setup)
+mise exec -- mix ecto.setup
 mise exec -- mix phx.server
 ```
 
-`mix ecto.setup` is a core-app alias that creates/migrates the configured database and runs its seeds;
+`mix ecto.setup` creates/migrates the configured database and runs its seeds;
 it is **not** a corpus download. An empty reader is expected until sources are acquired
 and ingested. Inspect [the source workflows](SOURCES.md) and [CLI index](CLI.md) rather
 than assuming one bake command loads every tradition. Acquiring sources requires their
@@ -62,7 +62,7 @@ No standalone HTTP `/embed` daemon is configured by this setup guide.
 
 ## Checks and troubleshooting
 
-Use [testing](TESTING.md) for documentation-only, umbrella and corpus checks.
+Use [testing](TESTING.md) for documentation-only, application and corpus checks.
 For a loaded research database, `mix pramana.doctor` reports source and retrieval-state
 facts; read its warnings rather than treating command completion as a health attestation.
 

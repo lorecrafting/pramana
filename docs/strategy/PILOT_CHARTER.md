@@ -1,9 +1,9 @@
 # Pramāṇa pilot charter
 
-**Status:** operator-approved product direction; implementation remains gated by Foundry G0.
+**Status:** operator-approved product direction; implementation remains subject to Pramāṇa preflight.
 **Decision date:** 2026-09-17
 **Source baseline:** `ac80923d4795be84b0f432031ad6e17a330f589f`
-**Strategic initiative:** I-P1, preparing I-P2/I-P3 after G0.
+**Strategic initiative:** I-P1, preparing I-P2/I-P3 after Pramāṇa preflight.
 
 [Pramāṇa strategy](PRAMANA.md) · [validation](VALIDATION.md) ·
 [acceptance contract](PILOT_ACCEPTANCE.md) · [participant protocol](PILOT_PARTICIPANTS.md) · [decision register](DECISIONS.md) · [roadmap](ROADMAP.md)
@@ -232,7 +232,7 @@ This charter authorizes **no new cash spend** and no new provider/billing route.
 implementation/pilot ticket must name the approved inference route and its budget before
 execution.
 
-Initial product-build/pilot iteration is capped at **40 operator hours** after G0.
+Initial product-build/pilot iteration is capped at **40 operator hours** after admission.
 Operator hours include implementation, setup, support, evaluation review and rework; they
 exclude participant time. Reaching that cap without satisfying the preregistered thresholds
 requires an explicit continue, reframe or stop decision rather than another infrastructure
@@ -298,19 +298,10 @@ retrieve it.
 
 ## D6 — capacity allocation
 
-Until Foundry G0/FR-22 is complete (tracked in [lorecrafting/foundry](https://github.com/lorecrafting/foundry)):
-
-- Foundry repair work remains the engineering critical path;
-- Pramāṇa work is limited to discovery, chartering, rights/evaluator preparation and other
-  non-operational planning that does not bypass G0.
-
-After G0, initial work-in-progress is capped at:
-
-- **one Pramāṇa product slice**, plus
-- **at most one bounded Foundry improvement** tied to a measured delivery bottleneck.
-
-Do not start the second-repository Foundry portability pilot during this first Pramāṇa
-user pilot. Reallocate only after an explicit gate review.
+Initial work-in-progress is capped at **one Pramāṇa product slice**. Use the
+[repository workflow](../agents/WORKFLOW.md) for agent contributions. A proposed
+workflow improvement needs a measured delivery bottleneck and its own bounded review;
+it does not gate the pilot. Reallocate only after an explicit gate review.
 
 ## D7 — replay promise
 
@@ -324,9 +315,9 @@ claiming to reconstruct the past.
 Exact historical replay becomes a product requirement only if observed users demonstrate
 a need that justifies the retention, rights and operating burden.
 
-## Post-G0 first vertical slice
+## First vertical slice
 
-The first eligible product slice after G0 should be deliberately narrow:
+The first eligible product slice after G1 admission should be deliberately narrow:
 
 1. user enters an English Dharma question;
 2. scope is visibly fixed to the recorded Chinese pilot release;

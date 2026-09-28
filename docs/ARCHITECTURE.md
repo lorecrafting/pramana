@@ -15,12 +15,12 @@ pure functions. The CLI owns mutations. MCP and the reader call the core domain.
 
 | Stage | Source of truth | Contract |
 |---|---|---|
-| Acquire | [Acquisition modules](../apps/pramana/lib/pramana/acquire), [source registry](../apps/pramana/lib/pramana/sources.ex), [lockfile](../sources.lock.json) | Preserve upstream snapshots and hashes; do not edit `raw/` in place |
-| Normalize | [Normalizers](../apps/pramana/lib/pramana/normalize) | Preserve citable structure, editorial apparatus and source distinctions |
-| Segment | [Segmenters](../apps/pramana/lib/pramana/segment), [URN parser](../apps/pramana/lib/pramana/urn.ex) | Adopt supported source anchors; distinguish derived addressing |
+| Acquire | [Acquisition modules](../lib/pramana/acquire), [source registry](../lib/pramana/sources.ex), [lockfile](../sources.lock.json) | Preserve upstream snapshots and hashes; do not edit `raw/` in place |
+| Normalize | [Normalizers](../lib/pramana/normalize) | Preserve citable structure, editorial apparatus and source distinctions |
+| Segment | [Segmenters](../lib/pramana/segment), [URN parser](../lib/pramana/urn.ex) | Adopt supported source anchors; distinguish derived addressing |
 | Enrich | Commentary, quotations, translations, readings and authority modules in the core | Method and confidence travel with inferred or generated material |
-| Index/retrieve | [Retrieval](../apps/pramana/lib/pramana/retrieval.ex), [hybrid](../apps/pramana/lib/pramana/retrieval/hybrid.ex) | Lexical and dense semantic retrieval, rank fusion and optional reranking; report which arms ran |
-| Verify | [Citation guard](../apps/pramana/lib/pramana/guard.ex), verification/integrity tasks | Re-resolve source citations; separate reproducibility, completeness and interpretation |
+| Index/retrieve | [Retrieval](../lib/pramana/retrieval.ex), [hybrid](../lib/pramana/retrieval/hybrid.ex) | Lexical and dense semantic retrieval, rank fusion and optional reranking; report which arms ran |
+| Verify | [Citation guard](../lib/pramana/guard.ex), verification/integrity tasks | Re-resolve source citations; separate reproducibility, completeness and interpretation |
 
 PostgreSQL holds the text, provenance, relational layers and vectors. The CJK Rustler
 NIF supplies segmentation. The separate Rust quotation scanner uses **seed-and-extend**
@@ -46,7 +46,7 @@ For example, `pramana:cbeta.T:T0262_009@p0037a13` uses an edition line anchor.
 Parsing an example does not establish that it resolves in a particular database.
 A rendering fragment identifies a translation of an anchor, not a new source work.
 
-[Corpus schemas](../apps/pramana/lib/pramana/corpus/schemas.ex), the source registry
+[Corpus schemas](../lib/pramana/corpus/schemas.ex), the source registry
 and source-specific classifiers own the fields. Composition origin, text role,
 attribution confidence, date basis, addressing and licensing are distinct axes.
 A Chinese rendering of an Indic root work is not given a `translation` text role
@@ -59,7 +59,7 @@ catalogue attribution is correct, nor can a tool prevent a model from ignoring a
 
 ## Identity and replay
 
-[Pramana.Bake](../apps/pramana/lib/pramana/bake.ex) hashes the lockfile-derived inputs,
+[Pramana.Bake](../lib/pramana/bake.ex) hashes the lockfile-derived inputs,
 pipeline version and bake configuration. This is **source input identity**. Reproducing
 source bytes also requires using those inputs and the matching pipeline correctly,
 then validating the result; an ID alone cannot attest a manually altered database.
@@ -68,7 +68,7 @@ The current loader replaces rows. Segments have no per-row bake identity support
 coexistent historic snapshots. Re-baking does not preserve a queryable older database.
 Retain the actual inputs and backups needed to reconstruct or inspect an older result.
 
-[Pramana.Release](../apps/pramana/lib/pramana/release.ex) implements a separate
+[Pramana.Release](../lib/pramana/release.ex) implements a separate
 retrieval stamp. Version-2 `translation_set_id` and `vector_set_id` values are deterministic
 content digests: renderings include their stable selection/provenance fields, and vectors
 include a SHA-256 of pgvector's stored binary value. `mix pramana.release.stamp` performs
@@ -81,7 +81,7 @@ reported as legacy rather than silently reinterpreted. A matching v2 `release_id
 the recorded source/rendering/vector rows; it still does not fingerprint retrieval code,
 defaults, planner behaviour or preserve a queryable historical database snapshot.
 
-[MCP Reply](../apps/pramana_web/lib/pramana_web/mcp/reply.ex) places `bake_id`,
+[MCP Reply](../lib/pramana_web/mcp/reply.ex) places `bake_id`,
 `release_id` and the caller's non-null arguments in both successful and error JSON replies.
 Both identity keys remain present with null values until their records exist. A reply
 reads the most recently recorded release, even if stale; it does not stamp automatically

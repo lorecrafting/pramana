@@ -152,7 +152,7 @@ defmodule Strategy.PilotParticipantsTest do
     assert gates["participant_protocol"]["state"] == "ready"
     assert gates["bilingual_evaluators"]["state"] == "blocked"
     assert gates["pilot_scope"]["state"] == "blocked"
-    assert gates["foundry_g0"]["state"] == "blocked"
+    refute Map.has_key?(gates, "foundry_g0")
   end
 
   test "CLI validates the frozen protocol and rejects incomplete invocation" do

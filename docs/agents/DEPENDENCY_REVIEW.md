@@ -38,42 +38,31 @@ the result: retain the relevant diff/new-file hashes or commit a review candidat
 If the required build is unavailable, use search and direct source reads and report
 compiler evidence as unavailable, not an empty graph or a passing check.
 
-## Find callers across the application boundary
+## Find callers across the codebase
 
-For an interface change, search each application rather than only the defining one.
-This also finds references to a target module from a different app, without merging
-ambiguous file paths. Example from the Git root, after the successful compile above:
+For an interface change, query the compiled single application from the Git root,
+after the successful compile above:
 
 ```sh
 (
   set -eu
-  found=0
-  for app in apps/*; do
-    test -f "$app/mix.exs" || continue
-    found=1
-    manifest="_build/test/lib/$(basename "$app")/.mix/compile.elixir"
-    if ! test -s "$manifest"; then
-      printf 'Compiler evidence unavailable for %s: missing %s; recompile first\n' "$app" "$manifest" >&2
-      exit 1
-    fi
-    printf '\nApplication: %s\n' "$app"
-    (cd "$app" && MIX_ENV=test mix xref callers Pramana.Release --no-compile)
-  done
-  if test "$found" -eq 0; then
-    printf 'Compiler evidence unavailable: run from the Git root with Pramāṇa apps present\n' >&2
+  manifest="_build/test/lib/pramana/.mix/compile.elixir"
+  if ! test -s "$manifest"; then
+    printf 'Compiler evidence unavailable for pramana: missing %s; recompile first\n' "$manifest" >&2
     exit 1
   fi
+  MIX_ENV=test mix xref callers Pramana.Release --no-compile
 )
 ```
 
 Replace `Pramana.Release` with the actual module under review. `callers` reports
 referring **files**, labelled `compile`, `export` or `runtime`, not a complete
-function/arity-level call graph. Keep the application heading with each path.
+function/arity-level call graph.
 The manifest guard uses this repository's standard test build paths; it catches
 missing/empty manifests, not stale or corrupt ones. Fresh compilation is still required.
 No output can mean no recorded references, an unknown module or unsuitable/stale
 scope; first locate the definition and verify the compilation context. It never
-proves that deletion is safe. `callers` and `trace` cannot run at the umbrella root.
+proves that deletion is safe.
 
 Inspect the reported files and relevant tests. Supplement with literal searches
 for the module/function, callback names, messages, configuration keys, SQL/schema
@@ -82,12 +71,11 @@ registrations, protocols and messages need explicit source/behavioral investigat
 
 ## Ask a scoped question, not for the entire graph
 
-Example from the Git root, using application-local paths:
+Example from the Git root:
 
 ```sh
 (
   set -eu
-  cd apps/pramana
   MIX_ENV=test mix xref graph --no-compile --sink lib/pramana/release.ex --only-nodes
   MIX_ENV=test mix xref graph --no-compile --source lib/pramana/release.ex
   MIX_ENV=test mix xref graph --no-compile --format stats
@@ -96,8 +84,8 @@ Example from the Git root, using application-local paths:
 ```
 
 `--sink` follows dependents; `--source` follows dependencies. Both may include
-indirect relationships. Graphs here contain only this application's files and
-internal edges; use the callers loop for cross-app interface impact. Export and
+indirect relationships. Graphs contain the domain, web and native Elixir files
+in one project. Export and
 compile dependencies take precedence over runtime references between a file pair.
 High fan-in is a reason to inspect an interface, not evidence of bad design.
 Compile-connected cycles are investigation targets, not an automatic refactor order.
@@ -105,13 +93,11 @@ Compile-connected cycles are investigation targets, not an automatic refactor or
 To explain a dependency at source locations, deliberately recompile that file:
 
 ```sh
-(cd apps/pramana_web && MIX_ENV=test mix xref trace lib/pramana_web/mcp/reply.ex --include-siblings)
+MIX_ENV=test mix xref trace lib/pramana_web/mcp/reply.ex
 ```
 
 `trace` executes compilation even if `--no-compile` is supplied; the flag only
 suppresses the preliminary project compilation. The example therefore omits it.
-`--include-siblings` on this trace includes declared `in_umbrella` dependencies,
-not every Mix project a machine may have checked out.
 
 ## CI reports and optional local export
 
@@ -121,22 +107,22 @@ new project dependencies or second call-graph implementation. Inside the artifac
 
 | File | Meaning |
 |---|---|
-| `metadata.json` | Schema v2: checkout SHA/tree, run/attempt, environment, tools, application roots, per-app status and limits |
+| `metadata.json` | Schema v2: checkout SHA/tree, run/attempt, environment, tools, application root, status and limits |
 | `source-files.paths0` | NUL-delimited tracked path inventory used to generate the checksum manifest and validate source membership |
 | `source-files.sha256` | Hashes of tracked Pramāṇa files, `mise.toml` and the producing workflow, relative to the Git root |
 | `toolchain.txt` | Actual Mix/Elixir/BEAM version output |
-| `<app>/graph.json` | Native file-to-file dependency map; names are relative to that app, not the Git root |
-| `<app>/elixir-sources.json` | Files enumerated from the app's configured `elixirc_paths`, independently of graph node count |
-| `<app>/stats.txt` | Native per-app dependency statistics |
-| `<app>/compile-connected-cycles.txt` | Native compile-connected cycle report; no cycles is a valid result |
+| `pramana/graph.json` | Native file-to-file dependency map; names are relative to the Git root |
+| `pramana/elixir-sources.json` | Files enumerated from configured `elixirc_paths`, independently of graph node count |
+| `pramana/stats.txt` | Native dependency statistics |
+| `pramana/compile-connected-cycles.txt` | Native compile-connected cycle report; no cycles is a valid result |
 
 The collector requires clean unchanged source, the expected checkout SHA and
 nonempty compiled manifests. Every graph source and configured Elixir source must
-be an app-local, tracked regular file in the exact checksum inventory. Symlinks,
+be a root-relative, tracked regular file in the exact checksum inventory. Symlinks,
 ignored/generated and external sources are explicitly unsupported: collection fails
 rather than giving unrecorded input a revision stamp. Graph labels/targets are checked.
 
-A successfully compiled app with no configured `.ex` inputs can have `{}` as its
+A successfully compiled project with no configured `.ex` inputs can have `{}` as its
 graph; schema v2 records `status: "no_elixir_sources"` and zero nodes/edges. A graph
 that is empty despite configured sources is rejected, not called not-applicable.
 Source enumeration uses `mix run --no-start --no-compile --no-listeners` and the
@@ -160,17 +146,14 @@ For a local export, create a new directory outside the checkout after compilatio
 (
   set -eu
   report_dir="$(mktemp -d "${TMPDIR:-/tmp}/pramana-xref.XXXXXX")"
-  cd apps/pramana
   MIX_ENV=test mix xref graph --no-compile --format json --output "$report_dir/graph.json"
-  printf 'Local app-only graph: %s\n' "$report_dir/graph.json"
+  printf 'Local graph: %s\n' "$report_dir/graph.json"
 )
 ```
 
 This local command emits only a graph, not the CI provenance bundle. Record its
 source/environment separately. Native DOT export is also available for an optional
-local renderer; no renderer is installed by this change. Do not flatten umbrella
-paths into an allegedly complete inter-app graph: native umbrella-root output is
-not namespaced, and identically named child paths can collide.
+local renderer; no renderer is installed by this change.
 
 ## Implementation and independent review handoff
 
@@ -179,9 +162,9 @@ small dependency note; the independent reviewer queries the candidate rather tha
 trusting that note as complete. A useful PR note is:
 
 ```text
-Dependency evidence: checkout SHA/tree (or dirty diff), MIX_ENV, app scope, command/run.
+Dependency evidence: checkout SHA/tree (or dirty diff), MIX_ENV, command/run.
 Affected interface: module/function or message/schema being changed.
-Inspected dependents: relevant app-qualified paths and what must stay compatible.
+Inspected dependents: relevant source paths and what must stay compatible.
 Dynamic/non-Elixir gaps: configuration, messages, native code or external consumers checked.
 Verification: regression tests run, failures/unavailable checks, remaining uncertainty.
 ```
@@ -194,7 +177,7 @@ This runbook does not launch subagents or choose paid models.
 
 ## Scope and deciding whether this helps
 
-The CI reports analyze only the Pramāṇa child applications. Rust NIF bodies, the separate quotation
+The CI report analyzes the Pramāṇa application. Rust NIF bodies, the separate quotation
 scanner, Python helpers, runtime message routes and corpus relationships are not
 represented as a complete graph by `xref`.
 
