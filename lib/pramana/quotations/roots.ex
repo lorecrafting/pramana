@@ -359,9 +359,9 @@ defmodule Pramana.Quotations.Roots do
   end
 
   # One statement rather than a walk, because the graph is six figures of rows and the
-  # grouping is what Postgres is for. `family` is rule 72's key; `DISTINCT q.text_sha256` is rule
-  # 73's; the `<>` on families is self-reference, which excluding on the id alone would
-  # miss for exactly the reason rule 72 was written.
+  # grouping is what Postgres is for. `family` is rule 72's key; distinct hashes are rule
+  # 73's; count hashes again per family because members can share the same passage. The
+  # `<>` on families is self-reference, which excluding on the id alone would miss.
   defp sql do
     """
     WITH ends AS (
@@ -373,19 +373,23 @@ defmodule Pramana.Quotations.Roots do
         FROM quotations
        WHERE bake_id IS NOT DISTINCT FROM $3
     ),
-    per_member AS (
+    eligible AS (
       SELECT e.w,
              e.p AS member,
              regexp_replace(e.p, '[a-z]+$', '') AS family,
-             count(DISTINCT e.s)::int AS passages
+             e.s
         FROM ends e
         JOIN works c ON c.id = e.w AND c.text_role = ANY($1)
         JOIN works r ON r.id = e.p AND r.text_role = 'root'
        WHERE regexp_replace(e.p, '[a-z]+$', '') <> regexp_replace(e.w, '[a-z]+$', '')
+    ),
+    per_member AS (
+      SELECT w, member, family, count(DISTINCT s)::int AS passages
+        FROM eligible
        GROUP BY 1, 2, 3
     ),
     per_family AS (
-      SELECT w, family, sum(passages)::int AS passages FROM per_member GROUP BY 1, 2
+      SELECT w, family, count(DISTINCT s)::int AS passages FROM eligible GROUP BY 1, 2
     ),
     ranked AS (
       SELECT *,

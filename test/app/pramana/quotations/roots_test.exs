@@ -136,13 +136,34 @@ defmodule Pramana.Quotations.RootsTest do
       candidate = for_work(Roots.candidates(), "T1695")
 
       assert candidate.family == "T0220"
-      assert candidate.passages == 3, "the family's members must be summed, not ranked apart"
+      assert candidate.passages == 3, "the family's distinct passages combine across members"
       assert candidate.target_work_id == "T0220a", "the best-attested witness is proposed"
 
       assert candidate.family_members == [
                %{work_id: "T0220a", passages: 2},
                %{work_id: "T0220b", passages: 1}
              ]
+    end
+
+    test "one passage repeated in sibling witnesses counts once for the family" do
+      commentary = work!("T1708", "commentary")
+      first = work!("T0220a", "root")
+      second = work!("T0220b", "root")
+      rival = work!("T0262", "root")
+
+      for n <- 1..3 do
+        shared!(commentary, first, "family passage #{n}")
+        shared!(commentary, second, "family passage #{n}")
+      end
+
+      for n <- 1..4, do: shared!(commentary, rival, "rival passage #{n}")
+
+      candidate = for_work(Roots.candidates(), "T1708")
+
+      assert candidate.target_work_id == "T0262"
+      assert candidate.passages == 4
+      assert candidate.runner_up == 3
+      assert candidate.band == :weak
     end
 
     test "a partner in the source's own family is self-reference, not evidence" do
