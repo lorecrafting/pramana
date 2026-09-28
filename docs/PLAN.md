@@ -37,13 +37,14 @@ reconcile it with current code before dispatching work from it.
   [preflight](strategy/PILOT_PREFLIGHT.md). G1 and the relevant Pramāṇa conditions
   govern implementation; the retired Foundry G0 gate no longer blocks it.
 - **Provision the first private source reviewer [#74](https://github.com/lorecrafting/pramana/issues/74).**
-  The account, grant, revocation and isolated runtime code merged in
-  [PR #77](https://github.com/lorecrafting/pramana/pull/77) with independent review and
-  green app, docs and container CI. The owner still needs to identify the individual
-  behind the “silent principal” display name; an operator must provision their login and
-  exact accepted scope grant in a restricted deployment. The private submission path is
-  implemented under [#75](https://github.com/lorecrafting/pramana/issues/75), but no real
-  account or judgment exists yet.
+  The isolated runtime and grants merged in [PR #77](https://github.com/lorecrafting/pramana/pull/77);
+  Phoenix account confirmation and sessions merged in
+  [PR #81](https://github.com/lorecrafting/pramana/pull/81). The owner still needs to identify
+  the individual behind the “silent principal” display name; an operator must provision
+  their login and exact accepted scope grant in a restricted deployment. Production mail
+  remains unconfigured, so confirmation needs an existing or free delivery route. The
+  private submission path is implemented under [#75](https://github.com/lorecrafting/pramana/issues/75),
+  but no real account or judgment exists yet.
 - **[Select the Chinese pilot inference route](https://github.com/lorecrafting/pramana/issues/65).** Compare a capable external route and a
   local route on the same frozen source-bound reading sample, terminology and qualified
   evaluator rubric; record fidelity by text role, latency, cost and exact processing
