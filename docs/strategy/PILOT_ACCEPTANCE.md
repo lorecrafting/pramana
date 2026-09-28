@@ -493,12 +493,12 @@ against a frozen pilot scope and have not executed.
 `retrieval_baseline` remains **blocked** because held-out Chinese cases and per-arm
 measurements have not been run against the accepted pilot release.
 
-`pilot_scope`, `foundry_g0`, rights/provider/inference, evaluator and participant gates
+`pilot_scope`, rights/provider/inference, evaluator and participant gates
 remain governed by their own evidence.
 
 ## Next independent handoff
 
-After this contract is accepted, the next independent pre-G0 task is to materialize and
+After this contract is accepted, the next independent preparation task is to materialize and
 freeze the exact Chinese pilot scope from an accepted release:
 
 - exact 14 seed work IDs;

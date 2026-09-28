@@ -1,10 +1,9 @@
 defmodule Pramana.PilotPreflight do
   @moduledoc false
 
-  @schema "pramana-pilot-preflight/v1"
+  @schema "pramana-pilot-preflight/v2"
 
   @mandatory_gates ~w(
-    foundry_g0
     pilot_scope
     cbeta_rights
     lexicon_rights

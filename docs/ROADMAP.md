@@ -1,6 +1,6 @@
 # Roadmap
 
-> Phase-planning record, not runtime acceptance evidence. For current code contracts use the documentation index; for active work use PLAN and, for Foundry, [lorecrafting/foundry](https://github.com/lorecrafting/foundry). Corpus counts and historical completion claims require their original evidence.
+> Phase-planning record, not runtime acceptance evidence. For current code contracts use the documentation index; for active work use PLAN. Historical Foundry records live in [lorecrafting/foundry](https://github.com/lorecrafting/foundry). Corpus counts and historical completion claims require their original evidence.
 
 Original phase-planning choices (not a new pilot commitment): open-source self-hosted ·
 all four traditions in v1 ·
@@ -22,8 +22,8 @@ the provenance model or the eval harness.
 
 Rechecked at `e5d0bfc2b61018d5b2f202baa4f9841ac7531882`. These are implementation
 states, not a new live corpus audit or approval of the proposed pilot. See
-[PLAN's current disposition](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#current-engineering-disposition--post-17-2026-09-16)
-for the active task, human dependencies and unchanged Foundry ownership.
+[the dated PLAN disposition](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#current-engineering-disposition--post-17-2026-09-16)
+for that date's engineering and ownership context; [current PLAN](PLAN.md) owns active work.
 
 | Phase | Current disposition |
 |---|---|
