@@ -106,8 +106,8 @@ reconcile it with current code before dispatching work from it.
 
 **The three blocks below are generated** — `mix pramana.docs.figures`, checked by the gate.
 They are the recorded snapshot from source commit `75a56c13ebafa0ab7e67f2cf12f47ad84aad2ebc`,
-not measurements of the repaired pilot candidate. Current-bake verification and the
-partial relation receipt are tracked above and in [#63](https://github.com/lorecrafting/pramana/issues/63).
+not measurements of the repaired pilot candidate. Current-bake verification and clean
+derivation receipts are tracked above and in [#63](https://github.com/lorecrafting/pramana/issues/63).
 
 <!-- figures:corpus -->
 | | |
