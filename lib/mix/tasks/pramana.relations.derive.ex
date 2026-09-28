@@ -83,7 +83,7 @@ defmodule Mix.Tasks.Pramana.Relations.Derive do
     Mix.Task.run("app.start")
     {opts, _} = OptionParser.parse!(argv, strict: @switches)
     min_title = Keyword.get(opts, :min_title, @default_min_title)
-    receipt = begin_receipt(opts[:dry_run], min_title)
+    receipt = begin_receipt(opts[:dry_run] == true, min_title)
 
     sources = load(Relations.explanatory_roles(), 0)
 
