@@ -46,6 +46,34 @@ defmodule Pramana.DerivationsTest do
     assert receipt.stats["output_count_matches_expected"] == false
   end
 
+  test "Tibetan title derivations do not count as Chinese title output" do
+    Repo.insert!(%Work{id: "toh9001", title: "Root", text_role: "treatise"})
+    Repo.insert!(%Work{id: "toh9002", title: "Commentary", text_role: "treatise"})
+
+    assert {:ok, _} =
+             Relations.assert(%{
+               source_work_id: "toh9002",
+               target_work_id: "toh9001",
+               relation: "comments_on",
+               method: "title_match",
+               confidence: "probable",
+               evidence: %{"rule" => "tibetan_stem_and_genre_suffix"}
+             })
+
+    token =
+      Derivations.begin_run(
+        "relations_title",
+        "bake-test",
+        %{"mode" => "full"},
+        %{"min_title" => 3}
+      )
+
+    receipt = Derivations.finish_run!(token, %{"failures" => 0, "expected_output_count" => 0})
+
+    assert receipt.status == "complete"
+    assert receipt.stats["output_count"] == 0
+  end
+
   test "commentary receipts become stale when the source role changes" do
     Repo.insert!(%Source{id: "cbeta", name: "CBETA"})
     Repo.insert!(%Witness{id: "T", name: "Taishō"})

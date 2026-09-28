@@ -32,7 +32,9 @@ an input mid-run. Pilot acceptance therefore retains its separate quiesced stabl
 requirement.
 
 The output digest binds the receipt to the exact derived rows that were observed. For
-commentary alignment this covers only the deterministic `lemma_match` rows owned by that
+title relations it excludes the separate Tibetan stem/suffix producer, which also uses
+`title_match`; stale rows from the Chinese title producer still make its receipt partial.
+For commentary alignment this covers only the deterministic `lemma_match` rows owned by that
 producer; unrelated future alignment methods do not poison its receipt. Ordering follows
 stable row identity, and alignment metadata is included in the digest. Any later mutation
 to the covered output makes the receipt stale when the verifier recomputes that digest.

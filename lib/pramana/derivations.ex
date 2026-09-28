@@ -33,7 +33,7 @@ defmodule Pramana.Derivations do
 
   @versions %{
     "quotations_scan" => "quotations_scan/v1",
-    "relations_title" => "relations_title/v1",
+    "relations_title" => "relations_title/v2",
     "relations_shared_text" => "relations_shared_text/v1",
     "commentary_align" => "commentary_align/v1"
   }
@@ -237,7 +237,12 @@ defmodule Pramana.Derivations do
   end
 
   def current_output_snapshot("relations_title", _bake_id, _scope, _parameters) do
-    rows = relation_output_rows("title_match")
+    # The Tibetan stem/suffix producer shares this assertion method but has its own run.
+    rows =
+      "title_match"
+      |> relation_output_rows()
+      |> Enum.reject(&(&1.evidence["rule"] == "tibetan_stem_and_genre_suffix"))
+
     {digest(rows), length(rows)}
   end
 
