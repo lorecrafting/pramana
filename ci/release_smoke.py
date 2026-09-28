@@ -166,7 +166,8 @@ SELECT format('GRANT SELECT ON TABLE %I.%I TO {REVIEWER}', schemaname, tablename
 FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename <> 'schema_migrations'
 \\gexec
-GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
+GRANT INSERT ON TABLE reviewer_judgments, reviewer_work_judgments,
+  reviewer_rights_judgments TO {REVIEWER};
 SELECT format('GRANT UPDATE (email,hashed_password,confirmed_at,updated_at) ON %I.%I TO {REVIEWER}', schemaname, tablename)
 FROM pg_tables WHERE schemaname='public' AND tablename='users'
 \\gexec

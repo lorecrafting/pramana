@@ -41,6 +41,15 @@ application startup. The root Mix project owns this alias. It never drops
 or resets a database. Test connection settings remain in `config/test.exs`.
 Use an isolated test database, not an operator's corpus or production database.
 
+## Reviewer browser loop
+
+Install once with `npm ci` and `npx playwright install chromium`. Run `bin/ui-loop`
+for the reviewer workspace browser check, or `bin/ui-loop --headed` to watch it.
+The script creates a disposable development database and synthetic reviewer account,
+starts its own server on port 4107, then removes the database and server on exit.
+Set `UI_PORT` if that port is busy. Screenshots and failure traces are written to
+`tmp/ui/results`. This loop does not use an operator account or the pilot corpus.
+
 ## The application gate is staged
 
 [The gate implementation](../lib/mix/tasks/pramana.gate.ex) defines the

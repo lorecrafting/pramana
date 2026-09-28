@@ -1,0 +1,161 @@
+<Layouts.app
+  flash={@flash}
+  current_scope={@current_scope}
+  private_reviewer={!!assigns[:private_reviewer]}
+>
+  <div class="mx-auto max-w-3xl space-y-7" id="work-review-page">
+    <a href="/reviews#works" class="link link-primary text-sm">← All works</a>
+
+    <header class="space-y-3">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="badge badge-neutral">{@work_review.work["work_id"]}</span>
+        <span :if={@work_review.work["answer_scope"]} class="badge badge-ghost">
+          Answer scope
+        </span>
+        <span :if={@work_review.work["review_target"]} class="badge badge-warning badge-outline">
+          Uncertain-link target
+        </span>
+      </div>
+      <h1 class="text-3xl font-semibold tracking-tight" lang="zh-Hant">
+        {@work_review.work["title"]}
+      </h1>
+      <p class="text-base-content/70">
+        Check that this work and its cited edition belong in the pilot's source set. Record the evidence you used.
+      </p>
+    </header>
+
+    <section
+      class="rounded-2xl border border-base-300 bg-base-100 p-5 sm:p-6"
+      aria-labelledby="source-details-heading"
+    >
+      <h2 id="source-details-heading" class="text-lg font-semibold">Source details</h2>
+      <dl class="mt-4 grid gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
+        <div>
+          <dt class="text-base-content/60">Source and witness</dt>
+          <dd class="mt-1 font-medium">
+            {@work_review.work["source"]} / {@work_review.work["witness"]}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Text role</dt>
+          <dd class="mt-1 font-medium">{@work_review.work["text_role"]}</dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Division</dt>
+          <dd class="mt-1 font-medium" lang="zh-Hant">{@work_review.row.division || "—"}</dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Attributed author</dt>
+          <dd class="mt-1 font-medium">{@work_review.row.attributed_author || "Not recorded"}</dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Composition origin</dt>
+          <dd class="mt-1 font-medium">
+            {@work_review.row.composition_origin || "Not recorded"}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-base-content/60">Attribution confidence</dt>
+          <dd class="mt-1 font-medium">
+            {@work_review.row.attribution_confidence || "Not recorded"}
+          </dd>
+        </div>
+      </dl>
+      <a
+        :if={!assigns[:private_reviewer]}
+        href={"/works/#{@work_review.work["work_id"]}"}
+        class="link link-primary mt-5 inline-block text-sm"
+      >
+        Read this work in Pramāṇa <span aria-hidden="true">↗</span>
+      </a>
+      <p :if={assigns[:private_reviewer]} class="mt-5 text-sm text-base-content/60">
+        Open the public reader separately and search for this work ID to compare the text.
+      </p>
+    </section>
+
+    <section
+      class="rounded-2xl border border-primary/25 bg-primary/5 p-5 sm:p-6"
+      aria-labelledby="decision-heading"
+    >
+      <h2 id="decision-heading" class="text-xl font-semibold">Your source recommendation</h2>
+      <p class="mt-1 text-sm text-base-content/70">
+        Check the work ID, title, witness, edition and role. If anything is uncertain, choose “Needs more review” and explain what remains.
+      </p>
+      <.form
+        for={@form}
+        id="work-review-form"
+        action={"/reviews/works/#{@work_review.work["work_id"]}"}
+        class="mt-5 space-y-4"
+      >
+        <.input field={@form[:scope_sha256]} type="hidden" value={@work_review.scope_sha256} />
+        <.input field={@form[:release_id]} type="hidden" value={@work_review.release_id} />
+        <.input field={@form[:work_fingerprint]} type="hidden" value={@work_review.fingerprint} />
+        <.input
+          field={@form[:judgment]}
+          type="select"
+          label="Recommendation"
+          prompt="Choose a recommendation"
+          options={[
+            {"Accept for this source set", "accept"},
+            {"Needs more review", "needs_review"},
+            {"Exclude from this source set", "exclude"}
+          ]}
+          required
+        />
+        <.input
+          field={@form[:rationale]}
+          type="textarea"
+          label="Why?"
+          rows="4"
+          maxlength="2000"
+          required
+          placeholder="Describe the identity or edition evidence and any uncertainty."
+        />
+        <.input
+          field={@form[:source_references]}
+          type="textarea"
+          label="Sources checked"
+          rows="3"
+          maxlength="2000"
+          required
+          placeholder="Edition, catalogue entry, work ID, passage address, or stable source link."
+        />
+        <p class="text-xs text-base-content/60">
+          Saved with your account and time. A later correction creates a new record; previous records stay visible.
+        </p>
+        <.button class="btn btn-primary w-full sm:w-auto">Save source recommendation</.button>
+      </.form>
+    </section>
+
+    <section class="space-y-3" aria-labelledby="history-heading">
+      <h2 id="history-heading" class="text-xl font-semibold">Your recorded decisions</h2>
+      <p
+        :if={@work_review.judgments == []}
+        class="rounded-xl border border-dashed border-base-300 p-4 text-sm text-base-content/60"
+      >
+        No recommendation for this work yet.
+      </p>
+      <ol :if={@work_review.judgments != []} class="space-y-3">
+        <li
+          :for={judgment <- @work_review.judgments}
+          class="rounded-xl border border-base-300 bg-base-100 p-4"
+        >
+          <div class="flex flex-wrap justify-between gap-2">
+            <strong class="capitalize">{String.replace(judgment.judgment, "_", " ")}</strong><time
+              class="text-xs text-base-content/60"
+              datetime={DateTime.to_iso8601(judgment.inserted_at)}
+            >{Calendar.strftime(judgment.inserted_at, "%Y-%m-%d %H:%M UTC")}</time>
+          </div>
+          <p class="mt-2 whitespace-pre-wrap text-sm">{judgment.rationale}</p>
+          <p class="mt-2 whitespace-pre-wrap text-xs text-base-content/65">
+            <strong>Sources:</strong> {judgment.source_references}
+          </p>
+        </li>
+      </ol>
+    </section>
+
+    <p class="rounded-xl bg-base-200 p-4 text-xs text-base-content/70">
+      This is a source recommendation for the exact saved scope. It does not change the corpus or approve display, model, export, or other use rights.
+    </p>
+  </div>
+</Layouts.app>

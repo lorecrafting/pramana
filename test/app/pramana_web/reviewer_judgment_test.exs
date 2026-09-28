@@ -1,6 +1,8 @@
 defmodule PramanaWeb.ReviewerJudgmentTest do
   use Pramana.DataCase, async: false
 
+  alias Plug.Conn.Query
+  alias Plug.Test, as: PlugTest
   alias Pramana.Accounts
   alias Pramana.AccountsFixtures
   alias Pramana.Corpus.Quotation
@@ -15,6 +17,10 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   alias Pramana.Release.Selection
   alias Pramana.Reviewer.Grant
   alias Pramana.Reviewer.Judgment
+  alias Pramana.Reviewer.RightsJudgment
+  alias Pramana.Reviewer.RightsReviews
+  alias Pramana.Reviewer.WorkJudgment
+  alias Pramana.Reviewer.WorkReviews
   alias Pramana.ReviewerAccess
   alias Pramana.ReviewerScopeFixture
   alias PramanaWeb.Endpoint
@@ -53,6 +59,15 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     Repo.insert!(%Selection{id: 1, release_id: release.id, selected_at: DateTime.utc_now()})
     relation = seed_case!(artifact)
 
+    for work <- artifact["works"], work["work_id"] not in ~w(T1800 T0400) do
+      Repo.insert!(%Work{
+        id: work["work_id"],
+        title: work["title"],
+        text_role: work["text_role"],
+        division: work["division"]
+      })
+    end
+
     account = AccountsFixtures.user_fixture()
 
     {:ok, _} =
@@ -75,9 +90,9 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert page.resp_body =~ "alternative root"
     assert page.resp_body =~ "Edition identity is disputed"
     assert page.resp_body =~ "pramana:cbeta.T:T1800_001@p0001a01"
-    assert page.resp_body =~ "Shared text alone does not prove direction"
-    assert page.resp_body =~ "T1800_001@p0001a01</code>\n(text characters [2, 23))"
-    assert page.resp_body =~ "T0400_001@p0002a01</code>\n(text characters [7, 28))"
+    assert page.resp_body =~ "Shared wording alone does not establish the direction"
+    assert page.resp_body =~ "T1800_001@p0001a01 · characters [2, 23)"
+    assert page.resp_body =~ "T0400_001@p0002a01 · characters [7, 28)"
 
     posted = post(relation.id, login, page, submission(page))
     assert posted.status == 302
@@ -102,20 +117,20 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
 
   test "a local reader session reaches review only while its exact grant is active", context do
     unless Process.whereis(Endpoint), do: start_supervised!(Endpoint)
-    assert Endpoint.call(Plug.Test.conn(:get, "/?q=佛"), []).status == 200
-    assert Endpoint.call(Plug.Test.conn(:get, "/reviews"), []).status == 302
+    assert Endpoint.call(PlugTest.conn(:get, "/?q=佛"), []).status == 200
+    assert Endpoint.call(PlugTest.conn(:get, "/reviews"), []).status == 302
 
     ungranted = AccountsFixtures.user_fixture()
     ungranted_token = Accounts.generate_user_session_token(ungranted)
 
-    assert Plug.Test.conn(:get, "/reviews")
-           |> Plug.Test.init_test_session(%{user_token: ungranted_token})
+    assert PlugTest.conn(:get, "/reviews")
+           |> PlugTest.init_test_session(%{user_token: ungranted_token})
            |> Endpoint.call([])
            |> Map.get(:status) == 403
 
     ungranted_reader =
-      Plug.Test.conn(:get, "/")
-      |> Plug.Test.init_test_session(%{user_token: ungranted_token})
+      PlugTest.conn(:get, "/")
+      |> PlugTest.init_test_session(%{user_token: ungranted_token})
       |> Endpoint.call([])
 
     refute ungranted_reader.resp_body =~ ~s(href="/reviews")
@@ -123,35 +138,42 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     token = Accounts.generate_user_session_token(context.account)
 
     session =
-      Plug.Test.conn(:get, "/reviews")
-      |> Plug.Test.init_test_session(%{user_token: token})
+      PlugTest.conn(:get, "/reviews")
+      |> PlugTest.init_test_session(%{user_token: token})
       |> Endpoint.call([])
 
     assert session.status == 200
     assert session.resp_body =~ "/reviews/#{context.relation.id}"
 
     reader =
-      Plug.Test.conn(:get, "/")
-      |> Plug.Test.recycle_cookies(session)
+      PlugTest.conn(:get, "/")
+      |> PlugTest.recycle_cookies(session)
       |> Endpoint.call([])
 
     assert reader.status == 200
     assert reader.resp_body =~ ~s(href="/reviews")
 
     page =
-      Plug.Test.conn(:get, "/reviews/#{context.relation.id}")
-      |> Plug.Test.recycle_cookies(session)
+      PlugTest.conn(:get, "/reviews/#{context.relation.id}")
+      |> PlugTest.recycle_cookies(session)
       |> Endpoint.call([])
 
     assert page.status == 200
     assert page.resp_body =~ ~s(href="/reviews")
 
-    attrs = submission(page) |> Map.put("_csrf_token", field(page.resp_body, "_csrf_token"))
+    attrs = submission(page)
 
     posted =
-      Plug.Test.conn(:post, "/reviews/#{context.relation.id}", URI.encode_query(attrs))
+      PlugTest.conn(
+        :post,
+        "/reviews/#{context.relation.id}",
+        Query.encode(%{
+          "review" => attrs,
+          "_csrf_token" => field(page.resp_body, "_csrf_token")
+        })
+      )
       |> Plug.Conn.put_req_header("content-type", "application/x-www-form-urlencoded")
-      |> Plug.Test.recycle_cookies(page)
+      |> PlugTest.recycle_cookies(page)
       |> Endpoint.call([])
 
     assert posted.status == 302
@@ -167,8 +189,8 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
              )
 
     denied =
-      Plug.Test.conn(:get, "/reviews")
-      |> Plug.Test.recycle_cookies(session)
+      PlugTest.conn(:get, "/reviews")
+      |> PlugTest.recycle_cookies(session)
       |> Endpoint.call([])
 
     assert denied.status == 403
@@ -187,16 +209,16 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     token = Accounts.generate_user_session_token(context.account)
 
     reader =
-      Plug.Test.conn(:get, "/")
-      |> Plug.Test.init_test_session(%{user_token: token})
+      PlugTest.conn(:get, "/")
+      |> PlugTest.init_test_session(%{user_token: token})
       |> Endpoint.call([])
 
     assert reader.status == 200
     refute reader.resp_body =~ ~s(href="/reviews")
 
     route =
-      Plug.Test.conn(:get, "/reviews")
-      |> Plug.Test.init_test_session(%{user_token: token})
+      PlugTest.conn(:get, "/reviews")
+      |> PlugTest.init_test_session(%{user_token: token})
       |> Endpoint.call([])
 
     assert route.status == 404
@@ -205,6 +227,17 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
   test "the restricted reviewer database role can submit without corpus write grants", context do
     login = login(context.account)
     page = get("/reviews/#{context.relation.id}", login)
+    work_page = get("/reviews/works/T1800", login)
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        context.account.email,
+        context.artifact["scope_content_sha256"],
+        "operator-1",
+        "rights_signoff"
+      )
+
+    rights_page = get("/reviews/rights/cbeta-local", login)
     role = "pramana_review_test_#{System.unique_integer([:positive])}"
 
     Repo.query!("CREATE ROLE #{role} NOLOGIN")
@@ -212,20 +245,45 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
 
     Repo.query!("""
     GRANT SELECT ON users, users_tokens, reviewer_grants, reviewer_judgments,
-      reviewer_dispositions,
-      work_relations, release_selection, releases TO #{role}
+      reviewer_dispositions, reviewer_work_judgments, reviewer_rights_judgments,
+      work_relations, works, release_selection, releases TO #{role}
     """)
 
-    Repo.query!("GRANT INSERT ON reviewer_judgments TO #{role}")
+    Repo.query!("""
+    GRANT INSERT ON reviewer_judgments, reviewer_work_judgments,
+      reviewer_rights_judgments TO #{role}
+    """)
 
     try do
       Repo.query!("SET LOCAL ROLE #{role}")
       assert post(context.relation.id, login, page, submission(page)).status == 302
+
+      assert post_form("/reviews/works/T1800", login, work_page, "work_review", %{
+               "scope_sha256" => field(work_page.resp_body, "scope_sha256", "work_review"),
+               "release_id" => field(work_page.resp_body, "release_id", "work_review"),
+               "work_fingerprint" =>
+                 field(work_page.resp_body, "work_fingerprint", "work_review"),
+               "judgment" => "needs_review",
+               "rationale" => "Identity remains uncertain.",
+               "source_references" => "CBETA T1800 catalogue"
+             }).status == 302
+
+      assert post_form("/reviews/rights/cbeta-local", login, rights_page, "rights_review", %{
+               "scope_sha256" => field(rights_page.resp_body, "scope_sha256", "rights_review"),
+               "release_id" => field(rights_page.resp_body, "release_id", "rights_review"),
+               "item_fingerprint" =>
+                 field(rights_page.resp_body, "item_fingerprint", "rights_review"),
+               "decision" => "unresolved",
+               "rationale" => "Terms need confirmation.",
+               "evidence_references" => "CBETA terms"
+             }).status == 302
     after
       Repo.query!("RESET ROLE")
     end
 
     assert Repo.get_by!(Judgment, account_id: context.account.id).judgment == "disputed"
+    assert Repo.get_by!(WorkJudgment, account_id: context.account.id).judgment == "needs_review"
+    assert Repo.get_by!(RightsJudgment, account_id: context.account.id).decision == "unresolved"
   end
 
   test "an old form refuses changed assertion evidence or release", context do
@@ -319,7 +377,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     File.write!(System.fetch_env!("PRAMANA_REVIEW_SCOPE_PATH"), "{}")
     login = login(context.account)
     assert get("/reviews/#{context.relation.id}", login).status == 503
-    assert get("/", login).resp_body =~ "No current review cases are available"
+    assert get("/", login).status == 503
     assert Repo.aggregate(Judgment, :count) == 0
   end
 
@@ -334,12 +392,12 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
 
     other_login = login(other)
     assert get("/reviews/#{relation.id}", other_login).status == 404
-    other_home = get("/", other_login)
+    other_page = get("/users/settings", other_login)
 
     valid_login = login(context.account)
     page = get("/reviews/#{relation.id}", valid_login)
     attrs = submission(page)
-    assert post(relation.id, other_login, other_home, attrs).status == 409
+    assert post(relation.id, other_page, other_page, attrs).status == 409
 
     assert post(relation.id, valid_login, page, Map.put(attrs, "account_id", "forged")).status ==
              400
@@ -355,26 +413,224 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     assert Repo.aggregate(Judgment, :count) == 0
   end
 
+  test "source recommendations are attributed, scoped and stopped by revocation", context do
+    login = login(context.account)
+    page = get("/reviews/works/T1800", login)
+    assert page.status == 200
+    assert page.resp_body =~ "first commentary"
+
+    attrs = %{
+      "scope_sha256" => field(page.resp_body, "scope_sha256", "work_review"),
+      "release_id" => field(page.resp_body, "release_id", "work_review"),
+      "work_fingerprint" => field(page.resp_body, "work_fingerprint", "work_review"),
+      "judgment" => "needs_review",
+      "rationale" => "The catalogue attribution requires a second witness.",
+      "source_references" => "CBETA T1800 catalogue entry"
+    }
+
+    assert post_form("/reviews/works/T1800", login, page, "work_review", attrs).status == 302
+
+    [judgment] = Repo.all(WorkJudgment)
+    assert judgment.account_id == context.account.id
+    assert judgment.work_id == "T1800"
+    assert judgment.judgment == "needs_review"
+
+    assert judgment.work_snapshot["work_metadata"]["attributed_author"] ==
+             "Synthetic reviewer fixture"
+
+    assert get("/reviews/works/T1800", login).resp_body =~ judgment.rationale
+
+    assert :ok =
+             ReviewerAccess.revoke_scope(
+               context.account.email,
+               context.artifact["scope_content_sha256"],
+               "operator-1",
+               "relation_review"
+             )
+
+    assert post_form("/reviews/works/T1800", login, page, "work_review", attrs).status == 403
+
+    assert {:error, :stale_or_unauthorized} =
+             WorkReviews.submit(context.account, context.artifact, "T1800", attrs)
+
+    assert Repo.aggregate(WorkJudgment, :count) == 1
+  end
+
+  test "an edited source-work division invalidates an old form", context do
+    login = login(context.account)
+    page = get("/reviews/works/T1800", login)
+
+    attrs = %{
+      "scope_sha256" => field(page.resp_body, "scope_sha256", "work_review"),
+      "release_id" => field(page.resp_body, "release_id", "work_review"),
+      "work_fingerprint" => field(page.resp_body, "work_fingerprint", "work_review"),
+      "judgment" => "needs_review",
+      "rationale" => "The changed catalogue classification needs rechecking.",
+      "source_references" => "CBETA T1800 catalogue entry"
+    }
+
+    Repo.get!(Work, "T1800")
+    |> Ecto.Changeset.change(division: "新分類")
+    |> Repo.update!()
+
+    assert post_form("/reviews/works/T1800", login, page, "work_review", attrs).status == 409
+    assert Repo.aggregate(WorkJudgment, :count) == 0
+  end
+
+  test "a rights-only signer lands on the rights workspace", context do
+    signer = AccountsFixtures.user_fixture() |> AccountsFixtures.set_password()
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        signer.email,
+        context.artifact["scope_content_sha256"],
+        "operator-1",
+        "rights_signoff"
+      )
+
+    login_page = get("/users/log-in", nil)
+
+    session =
+      post_form("/users/log-in", login_page, login_page, "user", %{
+        "email" => signer.email,
+        "password" => AccountsFixtures.valid_user_password()
+      })
+
+    assert session.status == 302
+    assert {"location", "/reviews/rights"} in session.resp_headers
+    assert get("/", session).status == 403
+
+    index = get("/reviews/rights", session)
+    assert index.status == 200
+    assert index.resp_body =~ ~s(href="/reviews/rights")
+    refute index.resp_body =~ ~s(href="/reviews")
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        signer.email,
+        String.duplicate("f", 64),
+        "operator-1"
+      )
+
+    next_login =
+      post_form("/users/log-in", login_page, login_page, "user", %{
+        "email" => signer.email,
+        "password" => AccountsFixtures.valid_user_password()
+      })
+
+    assert {"location", "/reviews/rights"} in next_login.resp_headers
+
+    unless Process.whereis(Endpoint), do: start_supervised!(Endpoint)
+
+    local_page =
+      PlugTest.conn(:get, "/")
+      |> PlugTest.init_test_session(%{
+        user_token: Accounts.generate_user_session_token(signer)
+      })
+      |> Endpoint.call([])
+
+    assert local_page.resp_body =~ ~s(href="/reviews/rights")
+    refute local_page.resp_body =~ ~s(href="/reviews")
+  end
+
+  test "rights decisions require their own grant and preserve exact use evidence", context do
+    login = login(context.account)
+    assert get("/reviews/rights", login).status == 403
+
+    {:ok, _} =
+      ReviewerAccess.grant_scope(
+        context.account.email,
+        context.artifact["scope_content_sha256"],
+        "operator-1",
+        "rights_signoff"
+      )
+
+    index = get("/reviews/rights", login)
+    assert index.status == 200
+    assert length(Regex.scan(~r/id="right-/, index.resp_body)) == 20
+    assert index.resp_body =~ "Karashima / Kumārajīva"
+
+    path = "/reviews/rights/dila-karashima-kumarajiva-local"
+    page = get(path, login)
+    assert page.status == 200
+    assert page.resp_body =~ "T0262"
+
+    attrs = %{
+      "scope_sha256" => field(page.resp_body, "scope_sha256", "rights_review"),
+      "release_id" => field(page.resp_body, "release_id", "rights_review"),
+      "item_fingerprint" => field(page.resp_body, "item_fingerprint", "rights_review"),
+      "decision" => "unresolved",
+      "rationale" => "The digital-edition terms need confirmation for local lookup.",
+      "evidence_references" => "DILA Karashima T0262 terms, checked 2026-09-28"
+    }
+
+    assert post_form(path, login, page, "rights_review", attrs).status == 302
+
+    [judgment] = Repo.all(RightsJudgment)
+    assert judgment.account_id == context.account.id
+    assert judgment.item_id == "dila-karashima-kumarajiva-local"
+    assert judgment.policy_snapshot["boundary"] =~ "T0262"
+    assert judgment.decision == "unresolved"
+    assert get(path, login).resp_body =~ judgment.rationale
+
+    assert :ok =
+             ReviewerAccess.revoke_scope(
+               context.account.email,
+               context.artifact["scope_content_sha256"],
+               "operator-1",
+               "rights_signoff"
+             )
+
+    assert post_form(path, login, page, "rights_review", attrs).status == 403
+
+    assert {:error, :stale_or_unauthorized} =
+             RightsReviews.submit(
+               context.account,
+               context.artifact,
+               "dila-karashima-kumarajiva-local",
+               attrs
+             )
+
+    assert Repo.aggregate(RightsJudgment, :count) == 1
+  end
+
   defp login(account) do
     token = Accounts.generate_user_session_token(account)
 
-    Plug.Test.conn(:get, "/")
-    |> Plug.Test.init_test_session(%{user_token: token})
+    PlugTest.conn(:get, "/")
+    |> PlugTest.init_test_session(%{user_token: token})
     |> ReviewerEndpoint.call([])
   end
 
   defp get(path, cookies) do
-    conn = Plug.Test.conn(:get, path)
-    conn = if cookies, do: Plug.Test.recycle_cookies(conn, cookies), else: conn
+    conn = PlugTest.conn(:get, path)
+    conn = if cookies, do: PlugTest.recycle_cookies(conn, cookies), else: conn
     ReviewerEndpoint.call(conn, [])
   end
 
   defp post(id, cookies, page, attrs) do
-    attrs = Map.put(attrs, "_csrf_token", field(page.resp_body, "_csrf_token"))
+    params = %{
+      "review" => attrs,
+      "_csrf_token" => field(page.resp_body, "_csrf_token")
+    }
 
-    Plug.Test.conn(:post, "/reviews/#{id}", URI.encode_query(attrs))
+    PlugTest.conn(:post, "/reviews/#{id}", Query.encode(params))
     |> Plug.Conn.put_req_header("content-type", "application/x-www-form-urlencoded")
-    |> Plug.Test.recycle_cookies(cookies)
+    |> PlugTest.recycle_cookies(cookies)
+    |> ReviewerEndpoint.call([])
+  end
+
+  defp post_form(path, cookies, page, as, attrs) do
+    PlugTest.conn(
+      :post,
+      path,
+      Query.encode(%{
+        as => attrs,
+        "_csrf_token" => field(page.resp_body, "_csrf_token")
+      })
+    )
+    |> Plug.Conn.put_req_header("content-type", "application/x-www-form-urlencoded")
+    |> PlugTest.recycle_cookies(cookies)
     |> ReviewerEndpoint.call([])
   end
 
@@ -389,8 +645,10 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
     }
   end
 
-  defp field(body, name) do
-    [_, value] = Regex.run(~r/name="#{name}" value="([^"]+)"/, body)
+  defp field(body, name, as \\ "review") do
+    name = if name == "_csrf_token", do: name, else: "#{as}[#{name}]"
+    [tag] = Regex.run(~r/<input(?=[^>]*name="#{Regex.escape(name)}")[^>]*>/, body)
+    [_, value] = Regex.run(~r/value="([^"]+)"/, tag)
     value
   end
 
@@ -402,6 +660,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
       id: "T1800",
       title: "first commentary",
       text_role: "commentary",
+      division: "經疏部",
       composition_origin: "chinese",
       attributed_author: "Synthetic reviewer fixture"
     })
@@ -410,6 +669,7 @@ defmodule PramanaWeb.ReviewerJudgmentTest do
       id: "T0400",
       title: "alternative root",
       text_role: "root",
+      division: "經集部",
       composition_origin: "chinese"
     })
 

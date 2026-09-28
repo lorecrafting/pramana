@@ -8,15 +8,15 @@ defmodule Mix.Tasks.Pramana.Reviewer do
   alias Pramana.Runtime
 
   @shortdoc "Provision, grant, or revoke private reviewer access"
-  @switches [email: :string, scope_sha256: :string, operator: :string]
+  @switches [email: :string, scope_sha256: :string, operator: :string, capability: :string]
 
   @moduledoc """
   Operator-only reviewer account management. Run against the private review database
   with administrative credentials, outside reviewer/public serving mode.
 
       mix pramana.reviewer provision --email EMAIL
-      mix pramana.reviewer grant --email EMAIL --scope-sha256 HASH --operator ID
-      mix pramana.reviewer revoke --email EMAIL --scope-sha256 HASH --operator ID
+      mix pramana.reviewer grant --email EMAIL --scope-sha256 HASH --operator ID [--capability relation_review|rights_signoff]
+      mix pramana.reviewer revoke --email EMAIL --scope-sha256 HASH --operator ID [--capability relation_review|rights_signoff]
       mix pramana.reviewer revoke --email EMAIL --operator ID
 
   Provision sends a Phoenix magic link to the configured PRAMANA_REVIEWER_URL.
@@ -57,11 +57,23 @@ defmodule Mix.Tasks.Pramana.Reviewer do
   end
 
   defp perform(["grant"], opts),
-    do: ReviewerAccess.grant_scope(opts[:email], opts[:scope_sha256], opts[:operator])
+    do:
+      ReviewerAccess.grant_scope(
+        opts[:email],
+        opts[:scope_sha256],
+        opts[:operator],
+        opts[:capability] || "relation_review"
+      )
 
   defp perform(["revoke"], opts) do
     if opts[:scope_sha256],
-      do: ReviewerAccess.revoke_scope(opts[:email], opts[:scope_sha256], opts[:operator]),
+      do:
+        ReviewerAccess.revoke_scope(
+          opts[:email],
+          opts[:scope_sha256],
+          opts[:operator],
+          opts[:capability]
+        ),
       else: ReviewerAccess.revoke_all(opts[:email], opts[:operator])
   end
 
@@ -107,9 +119,18 @@ defmodule Mix.Tasks.Pramana.Reviewer do
           Mix.raise(@moduledoc)
       end
 
-    if Enum.any?(required, &(not is_binary(opts[&1]))) or
-         Enum.any?(Keyword.keys(opts), &(&1 not in required)) do
-      Mix.raise(@moduledoc)
-    end
+    allowed =
+      if(args in [["grant"], ["revoke"]] and opts[:scope_sha256],
+        do: required ++ [:capability],
+        else: required
+      )
+
+    unless valid_options?(opts, required, allowed), do: Mix.raise(@moduledoc)
+  end
+
+  defp valid_options?(opts, required, allowed) do
+    Enum.all?(required, &is_binary(opts[&1])) and
+      Enum.all?(Keyword.keys(opts), &(&1 in allowed)) and
+      opts[:capability] in [nil, "relation_review", "rights_signoff"]
   end
 end

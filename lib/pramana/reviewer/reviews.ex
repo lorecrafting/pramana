@@ -49,8 +49,7 @@ defmodule Pramana.Reviewer.Reviews do
 
   @doc "Lists only current flagged assertions present in the configured exact scope."
   def list_cases(artifact, scopes) do
-    with :ok <- permitted_scope(artifact, scopes),
-         :ok <- selected_release(artifact) do
+    with :ok <- check_scope(artifact, scopes) do
       candidates = candidates(artifact)
 
       rows =
@@ -63,8 +62,7 @@ defmodule Pramana.Reviewer.Reviews do
 
   @doc "Loads one current case with work metadata, source quotations and this reviewer's history."
   def get_case(artifact, scopes, account_id, id) do
-    with :ok <- permitted_scope(artifact, scopes),
-         :ok <- selected_release(artifact),
+    with :ok <- check_scope(artifact, scopes),
          {:ok, parsed_id} <- parse_id(id),
          %WorkRelation{} = row <- Repo.get(WorkRelation, parsed_id),
          {:ok, case_info} <- exact_candidate(artifact, row),
@@ -299,6 +297,11 @@ defmodule Pramana.Reviewer.Reviews do
       nil -> {:error, :unavailable_case}
       candidate -> {:ok, %{candidate: candidate, fingerprint: fingerprint(candidate)}}
     end
+  end
+
+  @doc "Checks the active grant scope and selected release before presenting review work."
+  def check_scope(artifact, scopes) do
+    with :ok <- permitted_scope(artifact, scopes), do: selected_release(artifact)
   end
 
   defp permitted_scope(artifact, scopes) do

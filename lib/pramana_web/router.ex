@@ -23,13 +23,27 @@ defmodule PramanaWeb.Router do
 
   if Mix.env() in [:dev, :test] do
     alias Pramana.Publishing.Guard
+    alias Pramana.Reviewer.Reviews
     alias Pramana.ReviewerAccess
 
     defp assign_local_reviewer(%{assigns: %{current_scope: %{user: user}}} = conn, _opts) do
       if Guard.public?() do
         conn
       else
-        assign(conn, :local_reviewer, ReviewerAccess.active_scopes(user.id) != [])
+        case Reviews.configured_scope() do
+          {:ok, artifact} ->
+            scope = artifact["scope_content_sha256"]
+
+            conn
+            |> assign(:local_reviewer, scope in ReviewerAccess.active_scopes(user.id))
+            |> assign(
+              :local_rights_signer,
+              scope in ReviewerAccess.active_scopes(user.id, "rights_signoff")
+            )
+
+          _ ->
+            conn
+        end
       end
     end
 
@@ -47,10 +61,26 @@ defmodule PramanaWeb.Router do
       plug :require_reviewer_grant
     end
 
+    pipeline :rights_signer do
+      plug :reject_public_review_mode
+      plug :require_authenticated_user
+      plug :require_rights_signoff
+    end
+
+    scope "/", PramanaWeb do
+      pipe_through [:browser, :rights_signer]
+
+      get "/reviews/rights", ReviewerRightsController, :index
+      get "/reviews/rights/:item_id", ReviewerRightsController, :show
+      post "/reviews/rights/:item_id", ReviewerRightsController, :create
+    end
+
     scope "/", PramanaWeb do
       pipe_through [:browser, :reviewer]
 
       get "/reviews", ReviewerController, :index
+      get "/reviews/works/:work_id", ReviewerWorkController, :show
+      post "/reviews/works/:work_id", ReviewerWorkController, :create
       get "/reviews/:id", ReviewerJudgmentController, :show
       post "/reviews/:id", ReviewerJudgmentController, :create
     end

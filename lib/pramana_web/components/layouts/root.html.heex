@@ -46,6 +46,9 @@
         <li :if={assigns[:local_reviewer]}>
           <.link href="/reviews">Reviews</.link>
         </li>
+        <li :if={assigns[:local_rights_signer]}>
+          <.link href="/reviews/rights">Rights</.link>
+        </li>
         <li>
           <.link href="/users/settings">Settings</.link>
         </li>

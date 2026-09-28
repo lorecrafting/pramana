@@ -76,9 +76,8 @@ defmodule PramanaWeb.ReviewerEndpointTest do
 
     assert {:ok, _} = ReviewerAccess.grant_scope(user.email, @scope, "operator-1")
     home = request(:get, "/", login)
-    assert home.status == 200
-    assert home.resp_body =~ user.email
-    assert home.resp_body =~ @scope
+    assert home.status == 503
+    assert home.resp_body == "Review scope unavailable"
 
     assert :ok = ReviewerAccess.revoke_scope(user.email, @scope, "operator-1")
     assert request(:get, "/", login).status == 403
