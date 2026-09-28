@@ -134,6 +134,14 @@ jobs:
           key: ${{ runner.os }}-pramana-layout-v3-${{ hashFiles('mix.lock', '**/Cargo.lock', 'mise.toml') }}
           restore-keys: ${{ runner.os }}-pramana-layout-v3-
 
+      # The broad build cache is often a hit, so changes under ~/.cargo made later in
+      # the job are not saved by it. Cache this installed tool separately.
+      - name: Restore cargo-audit binary
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-audit-0.22.2
+
       - run: mix deps.get
 
       # Warnings-as-errors on the project's own code. A warning that nobody has to fix is
@@ -272,7 +280,7 @@ jobs:
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
         run: |
           if ! command -v cargo-audit &>/dev/null; then
-            cargo install cargo-audit --locked
+            cargo install cargo-audit --version 0.22.2 --locked
           fi
           cargo audit --file native/pramana_native/Cargo.lock
           cargo audit --file native/quotations/Cargo.lock
@@ -285,7 +293,7 @@ jobs:
       # No continue-on-error: preceding failures still fail this job.
       - name: Test the Pramana application
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
-        run: mix test
+        run: mix test --cover
 
       - name: Build production assets and release without starting it
         if: ${{ !cancelled() && steps.compile.outcome == 'success' }}
