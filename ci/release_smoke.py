@@ -157,6 +157,7 @@ SELECT format('GRANT SELECT ON TABLE %I.%I TO {REVIEWER}', schemaname, tablename
 FROM pg_tables WHERE schemaname='public' AND tablename NOT LIKE 'oban_%'
   AND tablename <> 'schema_migrations'
 \\gexec
+GRANT INSERT ON TABLE reviewer_judgments TO {REVIEWER};
 """)
         self.sql("audit_denied", f"REVOKE SELECT ON sources FROM {READER};")
 
