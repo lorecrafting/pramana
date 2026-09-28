@@ -37,6 +37,12 @@ defmodule Pramana.Cbeta.BylineTest do
       assert Byline.provenance("日本 空海撰") == %{composition_origin: "japanese"}
       assert Byline.provenance("日本 源信述") == %{composition_origin: "japanese"}
     end
+
+    test "mixed credits have no single work-level composition origin" do
+      # X0407 includes a Japanese editor's own preface; X0942 has mixed Q&A.
+      assert Byline.provenance("隋 智顗說　宋 知禮述　日本 實觀分會") == %{}
+      assert Byline.provenance("日本 最澄．圓澄．義真．光定．德圓 問　唐 道邃．廣修．維蠲．宗頴 答") == %{}
+    end
   end
 
   describe "what it refuses to decide" do

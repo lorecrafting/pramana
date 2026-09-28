@@ -70,7 +70,7 @@ defmodule Pramana.Cbeta.Byline do
 
     cond do
       trimmed == "" -> %{}
-      japanese?(trimmed) -> %{composition_origin: "japanese"}
+      String.contains?(trimmed, "日本") -> japanese_byline(trimmed)
       ends_with_any?(trimmed, @translated) -> %{composition_origin: "indic"}
       String.starts_with?(trimmed, "失譯") -> %{composition_origin: "indic"}
       ends_with_any?(trimmed, @composed) -> %{composition_origin: "chinese"}
@@ -91,9 +91,14 @@ defmodule Pramana.Cbeta.Byline do
 
   def verb(_), do: nil
 
-  # Checked BEFORE the verb, because a Japanese author also 撰s. X is published in Japan
-  # and holds Japanese-composed material alongside the Chinese, so this is not hypothetical.
-  defp japanese?(byline), do: String.contains?(byline, "日本")
+  # A single Japanese credit identifies a Japanese work. Mixed credits can include
+  # editor-authored prefaces, so one work-level origin cannot describe every passage.
+  defp japanese_byline(byline) do
+    case String.split(byline, "　", trim: true) do
+      ["日本" <> _] -> %{composition_origin: "japanese"}
+      _ -> %{}
+    end
+  end
 
   defp ends_with_any?(text, suffixes), do: Enum.any?(suffixes, &String.ends_with?(text, &1))
 end
