@@ -29,6 +29,12 @@ records which LokaCore checks fit this repository and which already exist here.
 The single-app coverage threshold is 89%, set against 90.16% measured at conversion.
 It replaces the former per-app thresholds; module-level figures remain visible in the
 coverage report, and behavior tests remain the check for web-specific regressions.
+CI runs `mix test --cover` and enforces that threshold.
+CI caches the installed `cargo-audit` binary separately from its build cache, so warm
+runs avoid recompiling the audit tool when the broader cache is already a hit.
+
+On macOS, a soft open-file limit of 256 can make coverage report generation exit with
+`:emfile` after all tests pass. Raise it in the test shell with `ulimit -n 4096`.
 
 `mix test` creates and migrates the configured test database before
 application startup. The root Mix project owns this alias. It never drops

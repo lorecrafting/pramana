@@ -100,7 +100,7 @@ defmodule Repository.LayoutTest do
 
     assert ci =~ "pull: true"
     assert ci =~ "mix compile --force --warnings-as-errors"
-    assert ci =~ "mix test"
+    assert ci =~ "run: mix test --cover"
     assert ci =~ "mix release --overwrite"
 
     refute container =~ ~s(- "**")
