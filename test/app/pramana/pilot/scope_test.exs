@@ -206,14 +206,15 @@ defmodule Pramana.Pilot.ScopeTest do
     refute Enum.any?(artifact["relations"], &(&1["target_work_id"] == "T0400"))
   end
 
-  test "pilot scope refuses a candidate with no visible review case" do
+  test "pilot scope permits zero review cases after the links are resolved" do
     input = input_fixture()
     rows = Enum.reject(input.relation_rows, &(&1.target_work_id == "T0400"))
 
-    assert {:error, {:invalid_artifact, errors}} =
-             Scope.build(%{input | relation_rows: rows})
-
-    assert "pilot scope must expose at least one needs-review case" in errors
+    assert {:ok, artifact} = Scope.build(%{input | relation_rows: rows})
+    assert artifact["review_cases"] == []
+    assert artifact["denominators"]["review_experience_case_count"] == 0
+    assert artifact["denominators"]["needs_review_relation_assertion_count"] == 0
+    assert :ok = ScopeArtifact.validate(artifact)
   end
 
   test "unrelated work, relation and alignment rows do not perturb the scope hash" do

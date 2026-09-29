@@ -6,7 +6,7 @@
     {
       "id": "pilot_scope",
       "state": "blocked",
-      "reason": "The local repaired CBETA candidate now has four clean/current full derivation receipts and two byte-identical scope materializations. Its 14 seeds, 40 expanded works, 26 admitted edges and three flagged review cases still need source-link, expanded-work and operation-level rights review. The release and scope remain unaccepted.",
+      "reason": "The local repaired CBETA candidate has four clean/current full derivation receipts and two byte-identical scope materializations after three supported link dispositions. Its 14 seeds, 40 expanded works and 26 admitted edges now carry zero visible flagged cases. Prior work and rights judgments need reconciliation to the new scope hash, and operation-level rights references remain insufficient. The release and scope remain unaccepted.",
       "evidence": [
         "docs/PLAN.md",
         "docs/strategy/PILOT_SCOPE.md",

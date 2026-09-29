@@ -704,22 +704,13 @@ defmodule Pramana.Pilot.ScopeArtifact do
         "alignment_rows denominator is wrong"
       )
       |> add_if(d["works_by_text_role"] != role_counts, "works_by_text_role is wrong")
-      |> check_review_denominators(d, review_cases)
+      |> add_if(
+        d["review_experience_case_count"] != length(review_cases),
+        "review_experience_case_count is wrong"
+      )
     else
       ["denominators must be an object" | errors]
     end
-  end
-
-  defp check_review_denominators(errors, denominators, review_cases) do
-    errors
-    |> add_if(
-      denominators["review_experience_case_count"] != length(review_cases),
-      "review_experience_case_count is wrong"
-    )
-    |> add_if(
-      denominators["needs_review_relation_assertion_count"] == 0 and review_cases == [],
-      "pilot scope must expose at least one needs-review case"
-    )
   end
 
   defp check_derivation_status(errors, status) when is_map(status) do

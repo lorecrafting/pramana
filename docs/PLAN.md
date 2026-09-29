@@ -62,16 +62,18 @@ reconcile it with current code before dispatching work from it.
   `1c385429ad3779b437d919defeab2c18ad3a0c2e9255a04c2de33139c8e3f85e` and selected
   release `acd1e8625f3a881a8c0997ba20209a0a0528aca042b5f173c1f38e29723e6ab4`
   now has clean, current quotation, title, shared-text v4 and commentary
-  alignment receipts. Shared-text receipt #10 records 80 current proposals plus 15
-  retained links: 95 outputs, with 16 still marked `needs_review`. Two new scope
-  materializations after the v4 receipt were byte-identical (file SHA-256
-  `2f6a82a1e287ec6bdf6e79f58a6e2606294cf7698f30731214b3f803e32482bd`, scope hash
-  `e6080b448240b73ecd983224ae432d470c60496674158f8d51fa2ad1b3ea9185`): 14 seeds,
-  40 answer-scope works, 26 admitted edges and three
-  separate flagged review cases. This is technical evidence under
-  [#63](https://github.com/lorecrafting/pramana/issues/63); the expanded works, source-link
-  verdicts and rights still need human review before any pilot-scope readiness claim.
-  Report cases using flagged links separately from accepted answer paths.
+  alignment receipts. After three owner-directed supported link dispositions, shared-text
+  receipt #11 records 80 current proposals plus 15 retained links: 95 outputs, with 13
+  still marked `needs_review` elsewhere in the corpus. Two new scope materializations
+  were byte-identical (file SHA-256
+  `99fb17b1ef3f6e3aa911e63ef49f52f55b88241c45d51fefd9ed3b498f7b2738`, scope hash
+  `a00dc20087a90031321504667684f3af290915cf00ca72110dfe57191abfcfe9`): 14 seeds,
+  40 answer-scope works, 26 admitted edges, and zero visible flagged assertions or
+  separate review cases. This is technical evidence under
+  [#63](https://github.com/lorecrafting/pramana/issues/63); prior work and rights judgments
+  must be reconciled to the new scope hash, and operation-level rights references remain
+  insufficient for a pilot-scope readiness claim. Any future flagged cases must remain
+  separate from accepted answer paths.
 - **The semantic arm cannot say "nothing".** [§ D](https://github.com/lorecrafting/pramana/blob/2ad8ed912a5ed1c30e8f4f1e97ce069fd1400c94/docs/PLAN.md#d-the-semantic-arm-cannot-express-ignorance--newly-discovered-2026-08-27):
   hybrid returns semantic neighbours for a doctrine no text discusses. A 2026-09-27 live
   probe over 499 search gold cases found that suppressing semantic-only weak matches would
