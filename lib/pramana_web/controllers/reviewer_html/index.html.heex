@@ -14,7 +14,7 @@
             Review the sources, one decision at a time.
           </h1>
           <p class="text-base-content/70">
-            Check each work's identity and edition, then examine the three uncertain commentary links.
+            Check each work's identity and edition, then examine any links still needing review.
             Every recommendation records your reason and the source you checked.
           </p>
         </div>
@@ -153,6 +153,9 @@
         </p>
       </div>
       <div class="grid gap-3">
+        <p :if={@cases == []} class="text-sm text-base-content/70">
+          No commentary links currently need review in this scope.
+        </p>
         <a
           :for={item <- @cases}
           href={"/reviews/#{item.id}"}

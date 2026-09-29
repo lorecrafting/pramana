@@ -137,9 +137,9 @@ Some flagged links point from an included commentary to a root outside the 14-se
 neighborhood. The artifact records those as `review_cases` with the source and target IDs,
 target metadata, assertion evidence and warning. They let the reader pilot exercise the
 warning without changing the demand seeds or silently adding an answer path. Review cases
-do **not** expand `works`, create an admitted relation, or supply answer synthesis. At least
-one admitted flagged assertion or separate review case is required for this pilot contract.
-Reader display of a review-case target still needs rights review.
+do **not** expand `works`, create an admitted relation, or supply answer synthesis. After
+review resolves the flagged links, both review counts may be zero; the artifact does not
+invent a warning case. Reader display of a review-case target still needs rights review.
 
 Works outside CBETA/Taishō, model-only relation assertions, and role-incoherent relation
 rows are excluded and counted rather than silently disappearing.
@@ -224,7 +224,9 @@ JSON is not enough.
 
 ## Current preflight state
 
-**Blocked.** The local repaired candidate has a newly stamped release, clean derivation
-receipts and two byte-identical v4 materializations, but no reviewed and accepted scope
-artifact. Expanded works, review-case targets and their rights still need review. A
-queryable database and a passing structural validator do not complete that review.
+**Blocked.** The local repaired candidate has clean derivation receipts and two
+byte-identical v4 materializations with 14 seeds, 40 works, 26 admitted edges and no
+visible review cases. Prior work and rights judgments are bound to the old scope hash and
+must be reconciled to the new one; operation-level rights references remain insufficient.
+The release and scope are not yet accepted. A queryable database and a passing structural
+validator do not complete that review.
