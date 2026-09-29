@@ -224,7 +224,9 @@ JSON is not enough.
 
 ## Current preflight state
 
-**Blocked.** The local repaired candidate has a newly stamped release, clean derivation
-receipts and two byte-identical v4 materializations, but no reviewed and accepted scope
-artifact. Expanded works, review-case targets and their rights still need review. A
-queryable database and a passing structural validator do not complete that review.
+**Blocked.** The local repaired candidate has clean derivation receipts and two
+byte-identical v4 materializations with 14 seeds, 40 works, 26 admitted edges and no
+visible review cases. Prior work and rights judgments are bound to the old scope hash and
+must be reconciled to the new one; operation-level rights references remain insufficient.
+The release and scope are not yet accepted. A queryable database and a passing structural
+validator do not complete that review.
